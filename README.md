@@ -44,7 +44,7 @@ This mirrors production systems like Smartify and Google Arts & Culture.
 2. **Initialize and start services:**
    ```bash
    just init-all
-   just up
+   just docker-up
    ```
 
 3. **Build the search index:**
@@ -151,23 +151,42 @@ Response:
 
 ## Development
 
-### All-in-One Commands
+### Docker (All Services)
+
+- `just docker-up` - Start all services (production mode, detached)
+- `just docker-up-dev` - Start all services (dev mode with hot reload)
+- `just docker-down` - Stop all services
+- `just docker-logs [service]` - View service logs
+- `just docker-build` - Build all Docker images
+
+### Docker (Single Service)
+
+From within a service directory (e.g., `cd services/embeddings`):
+- `just docker-up` - Start this service (production mode, detached)
+- `just docker-up-dev` - Start this service (dev mode with hot reload)
+- `just docker-down` - Stop this service
+- `just docker-logs` - View logs for this service
+- `just docker-build` - Build Docker image for this service
+
+### Local Development (No Docker)
 
 - `just init-all` - Initialize all service environments
-- `just up` - Start all services (Docker)
-- `just up-dev` - Start services with hot reload
-- `just down` - Stop all services
-- `just logs [service]` - View service logs
-- `just build` - Build all Docker images
 - `just destroy-all` - Remove all virtual environments
-- `just help` - Show all available commands
-
-### Running Individual Services
-
 - `just run-embeddings` - Run embeddings service locally
 - `just run-search` - Run search service locally
 - `just run-geometric` - Run geometric service locally
 - `just run-gateway` - Run gateway service locally
+
+Or from within a service directory:
+```bash
+cd services/embeddings
+just init  # First time only
+just run   # Runs locally with hot reload
+```
+
+### General
+
+- `just help` - Show all available commands
 
 ### Code Quality & Testing
 
