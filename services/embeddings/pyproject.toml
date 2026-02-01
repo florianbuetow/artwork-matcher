@@ -120,6 +120,7 @@ markers = [
     "unit: Unit tests (fast, isolated, no external dependencies)",
     "integration: Integration tests (require running services)",
     "slow: Tests that take more than 1 second",
+    "performance: Performance benchmark tests (require model, slow)",
 ]
 
 # === Coverage ===
