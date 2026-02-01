@@ -7,6 +7,7 @@ Extracts L2-normalized DINOv2 embeddings from base64-encoded images.
 from __future__ import annotations
 
 import base64
+import binascii
 import io
 import time
 from typing import Any
@@ -15,7 +16,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from fastapi import APIRouter
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 from embeddings_service.core.exceptions import ServiceError
 from embeddings_service.core.state import get_app_state
@@ -48,7 +49,7 @@ def decode_base64_image(base64_string: str) -> bytes:
 
     try:
         return base64.b64decode(base64_string)
-    except Exception as e:
+    except binascii.Error as e:
         raise ServiceError(
             error="decode_error",
             message=f"Invalid Base64 encoding: {e}",
@@ -76,7 +77,7 @@ def load_and_validate_image(image_bytes: bytes) -> Image.Image:
         image.verify()
         # Re-open because verify() consumes the file
         image = Image.open(io.BytesIO(image_bytes))
-    except Exception as e:
+    except (UnidentifiedImageError, OSError) as e:
         raise ServiceError(
             error="invalid_image",
             message=f"Failed to decode image: {e}",

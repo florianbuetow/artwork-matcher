@@ -155,7 +155,18 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         },
     )
 
-    model, processor, device = load_model(settings)
+    try:
+        model, processor, device = load_model(settings)
+    except Exception:
+        logger.exception(
+            "Failed to load model",
+            extra={
+                "model": settings.model.name,
+                "device": settings.model.device,
+            },
+        )
+        raise
+
     state.model = model
     state.processor = processor
     state.device = device

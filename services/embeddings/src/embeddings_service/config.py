@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 
 class ServiceConfig(BaseModel):
@@ -168,7 +168,7 @@ def get_settings() -> Settings:
 
     try:
         return Settings(**yaml_config)
-    except Exception as e:
+    except ValidationError as e:
         raise ConfigurationError(
             f"Configuration validation failed: {e}\n"
             f"All configuration values must be explicitly specified.\n"

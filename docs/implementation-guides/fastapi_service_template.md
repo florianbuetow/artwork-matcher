@@ -716,13 +716,16 @@ class ServiceError(Exception):
         self,
         error: str,
         message: str,
-        status_code: int = 400,
-        details: dict | None = None,
+        status_code: int,
+        details: dict[str, object] | None,
     ) -> None:
         self.error = error
         self.message = message
         self.status_code = status_code
-        self.details = details or {}
+        if details is None:
+            self.details: dict[str, object] = {}
+        else:
+            self.details = details
         super().__init__(message)
 
 

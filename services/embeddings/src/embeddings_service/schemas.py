@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 # === Request Models ===
 
@@ -16,7 +16,7 @@ class EmbedRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    image: str
+    image: str = Field(..., min_length=1)
     """Base64-encoded image data (JPEG, PNG, or WebP)."""
 
     image_id: str | None = None

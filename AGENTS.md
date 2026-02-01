@@ -49,11 +49,11 @@ uv sync --all-extras
 - `just` or `just help` - Show all available commands
 - `just init-all` - Initialize all service environments
 - `just destroy-all` - Remove all virtual environments
-- `just up` - Start all services (Docker)
-- `just up-dev` - Start with hot reload
-- `just down` - Stop all services
-- `just logs [service]` - View logs
-- `just build` - Build all Docker images
+- `just docker-up` - Start all services (Docker)
+- `just docker-up-dev` - Start with hot reload
+- `just docker-down` - Stop all services
+- `just docker-logs [service]` - View logs
+- `just docker-build` - Build all Docker images
 - `just test-all` - Run all tests
 - `just ci-all` - Run all CI checks (verbose)
 - `just ci-all-quiet` - Run all CI checks (quiet)

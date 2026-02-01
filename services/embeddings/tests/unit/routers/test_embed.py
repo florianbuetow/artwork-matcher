@@ -354,6 +354,57 @@ class TestEmbedErrors:
             assert "detected_format" in data["details"]
             assert "supported_formats" in data["details"]
 
+    def test_embed_model_not_loaded_returns_500(self) -> None:
+        """Embed endpoint returns 500 when model is not loaded."""
+        with (
+            patch("embeddings_service.app.lifespan"),
+            patch("embeddings_service.routers.embed.get_app_state") as mock_state,
+            patch("embeddings_service.routers.embed.get_logger"),
+        ):
+            # Create mock state with model=None
+            mock_state_obj = MagicMock()
+            mock_state_obj.model = None
+            mock_state_obj.processor = None
+            mock_state_obj.device = None
+            mock_state.return_value = mock_state_obj
+
+            app = create_app()
+            client = TestClient(app, raise_server_exceptions=False)
+
+            response = client.post(
+                "/embed",
+                json={"image": create_test_image_base64()},
+            )
+
+            assert response.status_code == 500
+            data = response.json()
+            assert data["error"] == "model_error"
+            assert "not loaded" in data["message"].lower()
+
+    def test_embed_model_inference_failure_returns_500(self, mock_app_state: MagicMock) -> None:
+        """Embed endpoint returns 500 when model inference fails."""
+        with (
+            patch("embeddings_service.app.lifespan"),
+            patch("embeddings_service.routers.embed.get_app_state") as mock_state,
+            patch("embeddings_service.routers.embed.get_logger"),
+            patch("embeddings_service.routers.embed.extract_dino_embedding") as embed_mock,
+        ):
+            mock_state.return_value = mock_app_state
+            embed_mock.side_effect = RuntimeError("CUDA out of memory")
+
+            app = create_app()
+            client = TestClient(app, raise_server_exceptions=False)
+
+            response = client.post(
+                "/embed",
+                json={"image": create_test_image_base64()},
+            )
+
+            assert response.status_code == 500
+            data = response.json()
+            assert data["error"] == "model_error"
+            assert "inference failed" in data["message"].lower()
+
 
 @pytest.mark.unit
 @pytest.mark.usefixtures("mock_settings")

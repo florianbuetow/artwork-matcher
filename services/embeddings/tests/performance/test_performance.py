@@ -64,9 +64,7 @@ class TestDimensionLatency:
         for i in range(ITERATIONS_PER_SCENARIO):
             image_id = f"{image_key}_iter{i}"
             start = time.perf_counter()
-            response = client.post(
-                "/embed", json={"image": image_base64, "image_id": image_id}
-            )
+            response = client.post("/embed", json={"image": image_base64, "image_id": image_id})
             elapsed_ms = (time.perf_counter() - start) * 1000
 
             assert response.status_code == 200, f"Request failed: {response.text}"
@@ -117,9 +115,7 @@ class TestFileSizeLatency:
         for i in range(ITERATIONS_PER_SCENARIO):
             image_id = f"{image_key}_iter{i}"
             start = time.perf_counter()
-            response = client.post(
-                "/embed", json={"image": image_base64, "image_id": image_id}
-            )
+            response = client.post("/embed", json={"image": image_base64, "image_id": image_id})
             elapsed_ms = (time.perf_counter() - start) * 1000
 
             assert response.status_code == 200, f"Request failed: {response.text}"
@@ -159,9 +155,7 @@ class TestThroughput:
         for i in range(THROUGHPUT_REQUESTS):
             image_id = f"throughput_seq_{i}"
             start = time.perf_counter()
-            response = client.post(
-                "/embed", json={"image": image_base64, "image_id": image_id}
-            )
+            response = client.post("/embed", json={"image": image_base64, "image_id": image_id})
             elapsed_ms = (time.perf_counter() - start) * 1000
 
             assert response.status_code == 200, f"Request failed: {response.text}"
@@ -218,9 +212,7 @@ class TestThroughput:
             """Make a single request and return latency in ms."""
             image_id = f"throughput_c{workers}_{request_id}"
             start = time.perf_counter()
-            response = client.post(
-                "/embed", json={"image": image_base64, "image_id": image_id}
-            )
+            response = client.post("/embed", json={"image": image_base64, "image_id": image_id})
             elapsed_ms = (time.perf_counter() - start) * 1000
 
             if response.status_code != 200:
