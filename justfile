@@ -72,7 +72,11 @@ status:
                 # Fetch additional info
                 if info_response=$(curl -s --connect-timeout 2 "http://localhost:${port}/info" 2>/dev/null); then
                     version=$(echo "$info_response" | grep -o '"version":"[^"]*"' | cut -d'"' -f4)
+                    model=$(echo "$info_response" | grep -o '"name":"[^"]*"' | head -1 | cut -d'"' -f4)
+                    dimension=$(echo "$info_response" | grep -o '"embedding_dimension":[0-9]*' | cut -d':' -f2)
                     [ -n "$version" ] && printf "  Version: %s\n" "$version"
+                    [ -n "$model" ] && printf "  Model: %s\n" "$model"
+                    [ -n "$dimension" ] && printf "  Embedding dim: %s\n" "$dimension"
                 fi
             else
                 printf "\033[0;33m⚠ %s\033[0m (port %s) - %s\n" "$name" "$port" "${status:-unknown}"
