@@ -7,7 +7,7 @@ help:
     @echo ""
     @clear
     @echo ""
-    @echo "\033[0;34m=== Artwork Matcher ===\033[0m"
+    @printf "\033[0;34m=== Artwork Matcher ===\033[0m\n"
     @echo ""
     @echo "Available commands:"
     @just --list
@@ -18,24 +18,24 @@ help:
 # Start all services with Docker Compose
 docker-up:
     @echo ""
-    @echo "\033[0;34m=== Starting All Services (Docker) ===\033[0m"
+    @printf "\033[0;34m=== Starting All Services (Docker) ===\033[0m\n"
     docker compose up -d
-    @echo "\033[0;32m✓ Services started\033[0m"
+    @printf "\033[0;32m✓ Services started\033[0m\n"
     @echo ""
 
 # Start all services in development mode (with hot reload)
 docker-up-dev:
     @echo ""
-    @echo "\033[0;34m=== Starting All Services (Docker Dev Mode) ===\033[0m"
+    @printf "\033[0;34m=== Starting All Services (Docker Dev Mode) ===\033[0m\n"
     docker compose -f docker-compose.yml -f docker-compose.dev.yml up
     @echo ""
 
 # Stop all services
 docker-down:
     @echo ""
-    @echo "\033[0;34m=== Stopping All Services ===\033[0m"
+    @printf "\033[0;34m=== Stopping All Services ===\033[0m\n"
     docker compose down
-    @echo "\033[0;32m✓ Services stopped\033[0m"
+    @printf "\033[0;32m✓ Services stopped\033[0m\n"
     @echo ""
 
 # View Docker logs (optionally for a specific service)
@@ -45,9 +45,9 @@ docker-logs service="":
 # Build all Docker images
 docker-build:
     @echo ""
-    @echo "\033[0;34m=== Building All Docker Images ===\033[0m"
+    @printf "\033[0;34m=== Building All Docker Images ===\033[0m\n"
     docker compose build
-    @echo "\033[0;32m✓ Build complete\033[0m"
+    @printf "\033[0;32m✓ Build complete\033[0m\n"
     @echo ""
 
 # Check health status of all services
@@ -116,25 +116,25 @@ run-gateway:
 # Initialize all service environments
 init-all:
     @echo ""
-    @echo "\033[0;34m=== Initializing All Services ===\033[0m"
+    @printf "\033[0;34m=== Initializing All Services ===\033[0m\n"
     cd services/embeddings && just init
     cd services/search && just init
     cd services/geometric && just init
     cd services/gateway && just init
     cd tools && just init
-    @echo "\033[0;32m✓ All services initialized\033[0m"
+    @printf "\033[0;32m✓ All services initialized\033[0m\n"
     @echo ""
 
 # Destroy all virtual environments
 destroy-all:
     @echo ""
-    @echo "\033[0;34m=== Destroying All Virtual Environments ===\033[0m"
+    @printf "\033[0;34m=== Destroying All Virtual Environments ===\033[0m\n"
     cd services/embeddings && just destroy
     cd services/search && just destroy
     cd services/geometric && just destroy
     cd services/gateway && just destroy
     cd tools && just destroy
-    @echo "\033[0;32m✓ All virtual environments removed\033[0m"
+    @printf "\033[0;32m✓ All virtual environments removed\033[0m\n"
     @echo ""
 
 # === Testing ===
@@ -142,12 +142,12 @@ destroy-all:
 # Run tests for all services
 test-all:
     @echo ""
-    @echo "\033[0;34m=== Running All Tests ===\033[0m"
+    @printf "\033[0;34m=== Running All Tests ===\033[0m\n"
     cd services/embeddings && just test
     cd services/search && just test
     cd services/geometric && just test
     cd services/gateway && just test
-    @echo "\033[0;32m✓ All tests passed\033[0m"
+    @printf "\033[0;32m✓ All tests passed\033[0m\n"
     @echo ""
 
 # Run tests for a specific service
@@ -160,38 +160,38 @@ test service:
 ci-all:
     #!/usr/bin/env bash
     set -e
-    echo ""
-    echo "\033[0;34m=== Running CI for All Services ===\033[0m"
-    echo ""
+    printf "\n"
+    printf "\033[0;34m=== Running CI for All Services ===\033[0m\n"
+    printf "\n"
     cd services/embeddings && just ci
     cd services/search && just ci
     cd services/geometric && just ci
     cd services/gateway && just ci
-    echo ""
-    echo "\033[0;32m✓ All CI checks passed\033[0m"
-    echo ""
+    printf "\n"
+    printf "\033[0;32m✓ All CI checks passed\033[0m\n"
+    printf "\n"
 
 # Run CI checks for all services (quiet mode)
 ci-all-quiet:
     #!/usr/bin/env bash
     set -e
-    echo "\033[0;34m=== Running CI for All Services (Quiet Mode) ===\033[0m"
+    printf "\033[0;34m=== Running CI for All Services (Quiet Mode) ===\033[0m\n"
 
-    echo "Checking embeddings..."
+    printf "Checking embeddings...\n"
     cd services/embeddings && just ci-quiet
 
-    echo "Checking search..."
+    printf "Checking search...\n"
     cd services/search && just ci-quiet
 
-    echo "Checking geometric..."
+    printf "Checking geometric...\n"
     cd services/geometric && just ci-quiet
 
-    echo "Checking gateway..."
+    printf "Checking gateway...\n"
     cd services/gateway && just ci-quiet
 
-    echo ""
-    echo "\033[0;32m✓ All CI checks passed\033[0m"
-    echo ""
+    printf "\n"
+    printf "\033[0;32m✓ All CI checks passed\033[0m\n"
+    printf "\n"
 
 # Run CI for a specific service
 ci service:
