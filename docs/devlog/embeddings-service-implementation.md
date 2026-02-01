@@ -200,6 +200,35 @@ Located in `tests/integration/`. Run with `just test-integration`.
 - End-to-end embedding extraction
 - Embedding consistency verification (same image → same embedding)
 
+### Performance Tests
+
+Located in `tests/performance/`. Run with `just test-performance`.
+
+Performance tests measure latency and throughput under various conditions using the real model. All test images are pre-generated before tests run to avoid contaminating latency measurements.
+
+**Test Scenarios:**
+
+| Category | Tests | Purpose |
+|----------|-------|---------|
+| Dimension | 100x100 to 4096x4096 | Measure preprocessing overhead for different input sizes |
+| File Size | 10KB to 5000KB | Measure JPEG decoding impact using noise images |
+| Throughput | Sequential + 2/4/8/16 workers | Measure sustained request capacity |
+
+**Metrics Collected:**
+
+- Latency: mean, min, max, std, p50, p95, p99
+- Throughput: requests/second, total duration
+
+**Report Generation:**
+
+After tests complete, a markdown report is automatically generated at `reports/performance/embedding_service_performance.md` with:
+
+- Key findings summary
+- Detailed results tables
+- Dynamic analysis (dimension impact ratios, bottleneck detection, scaling analysis)
+
+See [Performance Testing Plan](../performance/embedding_service_perf_testing.md) for full documentation.
+
 ---
 
 ## Justfile Commands
@@ -223,6 +252,7 @@ Located in `tests/integration/`. Run with `just test-integration`.
 | `just test` | Run all tests |
 | `just test-unit` | Run unit tests only |
 | `just test-integration` | Run integration tests only |
+| `just test-performance` | Run performance tests (generates report) |
 | `just ci` | Run all CI checks (uses unit tests) |
 | `just docker-up` | Start this service in Docker |
 | `just docker-down` | Stop this service |
@@ -237,3 +267,4 @@ Located in `tests/integration/`. Run with `just test-integration`.
 | `docs/implementation-guides/fastapi_service_template.md` | Service structure and patterns |
 | `docs/implementation-guides/fastapi_testing_guide.md` | Testing patterns with pytest |
 | `docs/implementation-guides/common_issues_and_fixes.md` | Troubleshooting guide |
+| `docs/performance/embedding_service_perf_testing.md` | Performance testing strategy and scenarios |

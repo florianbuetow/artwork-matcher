@@ -31,15 +31,15 @@ The embeddings service extracts DINOv2 embeddings from images. Performance tests
 
 ### 1. Image Dimension Tests
 
-Tests how input image dimensions affect processing time. The DINOv2 model resizes all inputs to 518×518, so this measures preprocessing overhead for different input sizes.
+Tests how input image dimensions affect processing time. The DINOv2 model resizes all inputs to 518x518, so this measures preprocessing overhead for different input sizes.
 
 | Test Case | Dimensions | Rationale |
 |-----------|------------|-----------|
-| tiny | 100×100 | Below model input size - minimal resize |
-| small | 500×500 | Close to model input (518) - near-native |
-| medium | 1000×1000 | ~2x model input - moderate downscale |
-| large | 2000×2000 | ~4x model input - significant downscale |
-| xlarge | 4000×4000 | ~8x model input - large image handling |
+| tiny | 100x100 | Below model input size - minimal resize |
+| small | 512x512 | Close to model input (518) - near-native |
+| medium | 1024x1024 | ~2x model input - moderate downscale |
+| large | 2048x2048 | ~4x model input - significant downscale |
+| xlarge | 4096x4096 | ~8x model input - large image handling |
 
 ### 2. File Size Tests (Compressed JPEG)
 
@@ -48,10 +48,12 @@ Tests how compressed file size affects processing time. Uses random noise images
 | Test Case | Target Size | Description |
 |-----------|-------------|-------------|
 | tiny | ~10 KB | Highly compressed, simple content |
-| small | ~100 KB | Typical web image |
-| medium | ~500 KB | High quality photo |
-| large | ~1 MB | Very high quality |
-| xlarge | ~5 MB | Maximum quality/complexity |
+| small | ~50 KB | Light compression |
+| medium | ~100 KB | Typical web image |
+| large | ~500 KB | High quality photo |
+| xlarge | ~1 MB | Very high quality |
+| xxlarge | ~2 MB | Professional quality |
+| xxxlarge | ~5 MB | Maximum quality/complexity |
 
 **Why noise images?** JPEG compression is content-dependent. A 1000×1000 solid red image compresses to ~5KB, while the same dimensions with random noise can be 500KB+. Noise images let us independently test file size impact.
 
@@ -61,18 +63,21 @@ Measures sustained request handling capacity under different load patterns.
 
 | Test Case | Type | Configuration | Purpose |
 |-----------|------|---------------|---------|
-| sequential | Loop | 50 requests back-to-back | Baseline throughput |
-| concurrent_2 | Parallel | 2 workers, 25 requests each | Light concurrency |
-| concurrent_4 | Parallel | 4 workers, 12 requests each | Moderate concurrency |
-| concurrent_8 | Parallel | 8 workers, 6 requests each | Heavy concurrency |
+| sequential | Loop | 250 requests back-to-back | Baseline throughput |
+| concurrent_2 | Parallel | 2 workers, 125 requests each | Light concurrency |
+| concurrent_4 | Parallel | 4 workers, 62 requests each | Moderate concurrency |
+| concurrent_8 | Parallel | 8 workers, 31 requests each | Heavy concurrency |
+| concurrent_16 | Parallel | 16 workers, 15 requests each | Maximum concurrency |
 
 ## Test Configuration
 
 | Parameter | Value | Rationale |
 |-----------|-------|-----------|
 | Iterations per scenario | 30 | Sufficient for statistical significance |
+| Throughput requests | 250 | Enough to measure sustained performance |
 | Image format | JPEG only | Service production format |
-| Output | Console | Real-time visibility during test runs |
+| Console output | Yes | Real-time visibility during test runs |
+| Report output | `reports/performance/embedding_service_performance.md` | Persistent markdown report with analysis |
 
 ## Image Pre-generation
 
@@ -89,14 +94,14 @@ def pregenerated_images() -> dict[str, str]:
     images = {}
 
     # Dimension test images (5 sizes)
-    for size in [100, 500, 1000, 2000, 4000]:
+    for size in [100, 512, 1024, 2048, 4096]:
         images[f"dim_{size}x{size}"] = create_noise_image_base64(size, size)
 
-    # File size test images (5 target sizes)
-    for target_kb in [10, 100, 500, 1000, 5000]:
+    # File size test images (7 target sizes)
+    for target_kb in [10, 50, 100, 500, 1000, 2000, 5000]:
         images[f"size_{target_kb}kb"] = create_target_size_image_base64(target_kb)
 
-    # Throughput test image (single standard image)
+    # Throughput test image (single standard image at model input size)
     images["throughput"] = create_noise_image_base64(518, 518)
 
     return images
@@ -105,7 +110,7 @@ def pregenerated_images() -> dict[str, str]:
 This ensures:
 - Image generation time is NOT included in latency measurements
 - All tests use identical pre-generated images
-- Large images (4000x4000, 5MB) are only generated once
+- Large images (4096x4096, 5MB) are only generated once
 
 ## File Structure
 
@@ -135,9 +140,37 @@ class LatencyMetrics:
     def min(self) -> float
     @property
     def max(self) -> float
-    def percentile(self, p: int) -> float  # p50, p95, p99
+    @property
+    def std(self) -> float
+    @property
+    def p50(self) -> float
+    @property
+    def p95(self) -> float
+    @property
+    def p99(self) -> float
+    def percentile(self, p: int) -> float
     def histogram(self, bins: int) -> dict[str, int]
     def summary(self) -> str  # Formatted output for console
+    def to_dict(self) -> dict[str, float | int]
+
+
+@dataclass
+class ThroughputMetrics:
+    total_requests: int
+    total_duration_seconds: float
+
+    @property
+    def requests_per_second(self) -> float
+
+
+@dataclass
+class PerformanceReport:
+    """Collects results and generates markdown report with dynamic analysis."""
+
+    def add_dimension_result(self, size, latency, image_size_kb) -> None
+    def add_filesize_result(self, target_kb, latency, actual_size_kb) -> None
+    def add_throughput_result(self, name, latency, throughput) -> None
+    def generate_markdown(self) -> str  # Full report with key findings and analysis
 ```
 
 #### 2. Image Generators (`performance/generators.py`)
@@ -165,11 +198,9 @@ def create_target_size_image_base64(
 class TestDimensionLatency:
     """Test latency across different image dimensions."""
 
-    @pytest.mark.parametrize("width,height", [
-        (100, 100), (500, 500), (1000, 1000), (2000, 2000), (4000, 4000)
-    ])
-    def test_dimension_latency(self, client, width, height):
-        # Run N iterations, collect metrics, report
+    @pytest.mark.parametrize("size", [100, 512, 1024, 2048, 4096])
+    def test_dimension_latency(self, client, pregenerated_images, performance_report, size):
+        # Run 30 iterations, collect metrics, record to report
 
 
 @pytest.mark.slow
@@ -177,9 +208,9 @@ class TestDimensionLatency:
 class TestFileSizeLatency:
     """Test latency across different compressed file sizes."""
 
-    @pytest.mark.parametrize("target_kb", [10, 100, 500, 1000, 5000])
-    def test_filesize_latency(self, client, target_kb):
-        # Generate noise image of target size, measure latency
+    @pytest.mark.parametrize("target_kb", [10, 50, 100, 500, 1000, 2000, 5000])
+    def test_filesize_latency(self, client, pregenerated_images, performance_report, target_kb):
+        # Use pre-generated noise image of target size, measure latency
 
 
 @pytest.mark.slow
@@ -187,11 +218,11 @@ class TestFileSizeLatency:
 class TestThroughput:
     """Test request throughput."""
 
-    def test_sequential_throughput(self, client):
-        # 50 sequential requests, measure requests/second
+    def test_sequential_throughput(self, client, pregenerated_images, performance_report):
+        # 250 sequential requests, measure requests/second
 
-    @pytest.mark.parametrize("workers", [2, 4, 8])
-    def test_concurrent_throughput(self, client, workers):
+    @pytest.mark.parametrize("workers", [2, 4, 8, 16])
+    def test_concurrent_throughput(self, client, pregenerated_images, performance_report, workers):
         # Parallel requests using ThreadPoolExecutor
 ```
 
@@ -201,18 +232,32 @@ class TestThroughput:
 # Navigate to embeddings service
 cd services/embeddings
 
-# Run only performance tests
-just test -- -m performance -v
+# Run all performance tests (recommended)
+just test-performance
 
 # Run specific test class
-just test -- -m performance -k "TestDimensionLatency" -v
+just test-performance -- -k "TestDimensionLatency"
 
 # Run specific scenario
-just test -- -m performance -k "test_dimension_latency[1000-1000]" -v
+just test-performance -- -k "test_dimension_latency[1024x1024]"
 
 # Exclude performance tests from regular test runs
 just test -- -m "not performance"
 ```
+
+## Report Output
+
+After tests complete, a markdown report is automatically generated at:
+
+```
+services/embeddings/reports/performance/embedding_service_performance.md
+```
+
+The report includes:
+- **Key Findings** - Summary of dimension impact, file size impact, and throughput
+- **Test Configuration** - Parameters used for the test run
+- **Detailed Results** - Tables with mean, std, p50, p95, p99 for each scenario
+- **Dynamic Analysis** - Insights based on actual measured data (e.g., bottleneck detection, scaling analysis)
 
 ## Interpreting Results
 
