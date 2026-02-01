@@ -13,42 +13,73 @@ help:
     @just --list
     @echo ""
 
-# === Full Stack (Docker) ===
+# === Docker (All Services) ===
 
 # Start all services with Docker Compose
-up:
+docker-up:
     @echo ""
-    @echo "\033[0;34m=== Starting All Services ===\033[0m"
+    @echo "\033[0;34m=== Starting All Services (Docker) ===\033[0m"
     docker compose up -d
     @echo "\033[0;32m✓ Services started\033[0m"
     @echo ""
 
 # Start all services in development mode (with hot reload)
-up-dev:
+docker-up-dev:
     @echo ""
-    @echo "\033[0;34m=== Starting All Services (Dev Mode) ===\033[0m"
+    @echo "\033[0;34m=== Starting All Services (Docker Dev Mode) ===\033[0m"
     docker compose -f docker-compose.yml -f docker-compose.dev.yml up
     @echo ""
 
 # Stop all services
-down:
+docker-down:
     @echo ""
     @echo "\033[0;34m=== Stopping All Services ===\033[0m"
     docker compose down
     @echo "\033[0;32m✓ Services stopped\033[0m"
     @echo ""
 
-# View logs (optionally for a specific service)
-logs service="":
+# View Docker logs (optionally for a specific service)
+docker-logs service="":
     docker compose logs -f {{service}}
 
 # Build all Docker images
-build:
+docker-build:
     @echo ""
-    @echo "\033[0;34m=== Building All Images ===\033[0m"
+    @echo "\033[0;34m=== Building All Docker Images ===\033[0m"
     docker compose build
     @echo "\033[0;32m✓ Build complete\033[0m"
     @echo ""
+
+# Check health status of all services
+status:
+    #!/usr/bin/env bash
+    echo ""
+    echo "\033[0;34m=== Service Status ===\033[0m"
+    echo ""
+
+    check_service() {
+        local name=$1
+        local port=$2
+        local response
+
+        if response=$(curl -s --connect-timeout 2 "http://localhost:${port}/health" 2>/dev/null); then
+            status=$(echo "$response" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+            if [ "$status" = "healthy" ]; then
+                echo "\033[0;32m✓ ${name}\033[0m (port ${port}) - healthy"
+            else
+                echo "\033[0;33m⚠ ${name}\033[0m (port ${port}) - ${status:-unknown}"
+            fi
+        else
+            echo "\033[0;31m✗ ${name}\033[0m (port ${port}) - not responding"
+        fi
+    }
+
+    check_service "Gateway" 8000
+    check_service "Embeddings" 8001
+    check_service "Search" 8002
+    check_service "Geometric" 8003
+
+    echo ""
 
 # === Individual Services (Local Development) ===
 
