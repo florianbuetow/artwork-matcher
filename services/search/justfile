@@ -56,18 +56,22 @@ kill:
     printf "\033[0;34m=== Stopping Search Service (Local) ===\033[0m\n"
     printf "\n"
 
-    if pgrep -f "uvicorn search_service" > /dev/null; then
-        printf "Service is running. Stopping...\n"
-        pkill -f "uvicorn search_service"
+    # Find process listening on port 8002
+    pid=$(lsof -ti :8002 2>/dev/null)
+
+    if [ -n "$pid" ]; then
+        printf "Service is running (PID: %s). Stopping...\n" "$pid"
+        kill $pid 2>/dev/null
         sleep 1
 
-        if pgrep -f "uvicorn search_service" > /dev/null; then
+        # Check if still running
+        if lsof -ti :8002 > /dev/null 2>&1; then
             printf "\033[0;31m✗ Service still running. Forcing kill...\033[0m\n"
-            pkill -9 -f "uvicorn search_service"
+            kill -9 $(lsof -ti :8002) 2>/dev/null
             sleep 1
         fi
 
-        if pgrep -f "uvicorn search_service" > /dev/null; then
+        if lsof -ti :8002 > /dev/null 2>&1; then
             printf "\033[0;31m✗ Failed to stop service\033[0m\n"
             exit 1
         else
