@@ -1181,15 +1181,65 @@ spec:
 
 ```makefile
 # Run service in development (with reload)
-run-dev:
+run:
     @echo "\033[0;34m=== Running Service (Development) ===\033[0m"
     @uv run uvicorn <service_name>.app:create_app --factory --reload --host 0.0.0.0 --port 8001
 
 # Run service in production mode (local testing)
-run:
+run-prod:
     @echo "\033[0;34m=== Running Service (Production) ===\033[0m"
     @uv run python -m <service_name>.main
 ```
+
+### justfile Kill Command
+
+When using `uv run uvicorn --reload`, the process spawns multiple child processes that don't match simple `pgrep` patterns. Use port-based detection with `lsof` instead:
+
+```makefile
+# Stop the locally running service
+kill:
+    #!/usr/bin/env bash
+    printf "\n"
+    printf "\033[0;34m=== Stopping Service (Local) ===\033[0m\n"
+    printf "\n"
+
+    # Find process listening on the service port (e.g., 8001)
+    pid=$(lsof -ti :8001 2>/dev/null)
+
+    if [ -n "$pid" ]; then
+        printf "Service is running (PID: %s). Stopping...\n" "$pid"
+        kill $pid 2>/dev/null
+        sleep 1
+
+        # Check if still running
+        if lsof -ti :8001 > /dev/null 2>&1; then
+            printf "\033[0;31m✗ Service still running. Forcing kill...\033[0m\n"
+            kill -9 $(lsof -ti :8001) 2>/dev/null
+            sleep 1
+        fi
+
+        if lsof -ti :8001 > /dev/null 2>&1; then
+            printf "\033[0;31m✗ Failed to stop service\033[0m\n"
+            exit 1
+        else
+            printf "\033[0;32m✓ Service stopped\033[0m\n"
+        fi
+    else
+        printf "Service is not running\n"
+    fi
+    printf "\n"
+```
+
+**Why port-based detection?**
+
+The naive approach using `pgrep -f "uvicorn <service_name>"` fails because:
+1. `uv run` wraps the command, changing the process name
+2. `--reload` spawns a StatReload watcher + child worker processes
+3. The actual process may appear as `python3.x` instead of `uvicorn`
+
+Using `lsof -ti :PORT` reliably finds whatever process is listening on the port, regardless of how it was spawned.
+
+**Note:** Use `printf` instead of `echo` for ANSI color codes in bash scripts, as `echo` doesn't interpret `\033` escape sequences on all systems.
 
 ---
 
