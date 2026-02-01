@@ -53,9 +53,9 @@ docker-build:
 # Check health status of all services
 status:
     #!/usr/bin/env bash
-    echo ""
-    echo "\033[0;34m=== Service Status ===\033[0m"
-    echo ""
+    printf "\n"
+    printf "\033[0;34m=== Service Status ===\033[0m\n"
+    printf "\n"
 
     check_service() {
         local name=$1
@@ -65,12 +65,12 @@ status:
         if response=$(curl -s --connect-timeout 2 "http://localhost:${port}/health" 2>/dev/null); then
             status=$(echo "$response" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
             if [ "$status" = "healthy" ]; then
-                echo "\033[0;32m✓ ${name}\033[0m (port ${port}) - healthy"
+                printf "\033[0;32m✓ %s\033[0m (port %s) - healthy\n" "$name" "$port"
             else
-                echo "\033[0;33m⚠ ${name}\033[0m (port ${port}) - ${status:-unknown}"
+                printf "\033[0;33m⚠ %s\033[0m (port %s) - %s\n" "$name" "$port" "${status:-unknown}"
             fi
         else
-            echo "\033[0;31m✗ ${name}\033[0m (port ${port}) - not responding"
+            printf "\033[0;31m✗ %s\033[0m (port %s) - not responding\n" "$name" "$port"
         fi
     }
 
@@ -79,7 +79,7 @@ status:
     check_service "Search" 8002
     check_service "Geometric" 8003
 
-    echo ""
+    printf "\n"
 
 # === Individual Services (Local Development) ===
 
