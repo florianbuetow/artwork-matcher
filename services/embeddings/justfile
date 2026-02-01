@@ -122,12 +122,21 @@ status:
     printf "\n"
     printf "\033[0;34m=== Embeddings Service Status ===\033[0m\n"
     printf "\n"
-    if response=$(curl -s --connect-timeout 2 "http://localhost:8001/health" 2>/dev/null); then
-        status=$(echo "$response" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
-        uptime=$(echo "$response" | grep -o '"uptime":"[^"]*"' | cut -d'"' -f4)
+    if health_response=$(curl -s --connect-timeout 2 "http://localhost:8001/health" 2>/dev/null); then
+        status=$(echo "$health_response" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+        uptime=$(echo "$health_response" | grep -o '"uptime":"[^"]*"' | cut -d'"' -f4)
         if [ "$status" = "healthy" ]; then
             printf "\033[0;32m✓ Embeddings\033[0m (port 8001) - healthy\n"
             [ -n "$uptime" ] && printf "  Uptime: %s\n" "$uptime"
+            # Fetch additional info
+            if info_response=$(curl -s --connect-timeout 2 "http://localhost:8001/info" 2>/dev/null); then
+                version=$(echo "$info_response" | grep -o '"version":"[^"]*"' | cut -d'"' -f4)
+                model=$(echo "$info_response" | grep -o '"name":"[^"]*"' | head -1 | cut -d'"' -f4)
+                dimension=$(echo "$info_response" | grep -o '"embedding_dimension":[0-9]*' | cut -d':' -f2)
+                [ -n "$version" ] && printf "  Version: %s\n" "$version"
+                [ -n "$model" ] && printf "  Model: %s\n" "$model"
+                [ -n "$dimension" ] && printf "  Embedding dimension: %s\n" "$dimension"
+            fi
         else
             printf "\033[0;33m⚠ Embeddings\033[0m (port 8001) - %s\n" "${status:-unknown}"
         fi

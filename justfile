@@ -60,12 +60,20 @@ status:
     check_service() {
         local name=$1
         local port=$2
-        local response
+        local health_response
+        local info_response
 
-        if response=$(curl -s --connect-timeout 2 "http://localhost:${port}/health" 2>/dev/null); then
-            status=$(echo "$response" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+        if health_response=$(curl -s --connect-timeout 2 "http://localhost:${port}/health" 2>/dev/null); then
+            status=$(echo "$health_response" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+            uptime=$(echo "$health_response" | grep -o '"uptime":"[^"]*"' | cut -d'"' -f4)
             if [ "$status" = "healthy" ]; then
                 printf "\033[0;32m✓ %s\033[0m (port %s) - healthy\n" "$name" "$port"
+                [ -n "$uptime" ] && printf "  Uptime: %s\n" "$uptime"
+                # Fetch additional info
+                if info_response=$(curl -s --connect-timeout 2 "http://localhost:${port}/info" 2>/dev/null); then
+                    version=$(echo "$info_response" | grep -o '"version":"[^"]*"' | cut -d'"' -f4)
+                    [ -n "$version" ] && printf "  Version: %s\n" "$version"
+                fi
             else
                 printf "\033[0;33m⚠ %s\033[0m (port %s) - %s\n" "$name" "$port" "${status:-unknown}"
             fi
