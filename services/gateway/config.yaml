@@ -1,0 +1,26 @@
+# Gateway Service Configuration
+# Environment variable overrides use prefix: GATEWAY__
+# Example: GATEWAY__BACKENDS__EMBEDDINGS_URL=http://embeddings:8001
+
+backends:
+  embeddings_url: "http://localhost:8001"
+  search_url: "http://localhost:8002"
+  geometric_url: "http://localhost:8003"
+  timeout_seconds: 30.0
+
+pipeline:
+  search_k: 5                       # Number of candidates to retrieve
+  similarity_threshold: 0.7         # Minimum embedding similarity
+  geometric_verification: true      # Enable geometric verification stage
+  confidence_threshold: 0.6         # Minimum confidence to return match
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+  log_level: "info"
+  cors_origins:
+    - "*"
+
+data:
+  objects_path: "/data/objects"
+  labels_path: "/data/labels.csv"

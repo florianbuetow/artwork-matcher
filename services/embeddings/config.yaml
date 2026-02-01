@@ -1,0 +1,17 @@
+# Embeddings Service Configuration
+# Environment variable overrides use prefix: EMBEDDINGS__
+# Example: EMBEDDINGS__MODEL__DEVICE=cuda
+
+model:
+  name: "facebook/dinov2-base"
+  device: "auto"                    # auto, cpu, cuda, mps
+  embedding_dimension: 768
+
+preprocessing:
+  image_size: 518                   # DINOv2 native input size
+  normalize: true                   # Apply ImageNet normalization
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+  log_level: "info"

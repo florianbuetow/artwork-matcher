@@ -1,0 +1,32 @@
+services:
+  embeddings:
+    build:
+      context: ./services/embeddings
+    volumes:
+      - ./services/embeddings/src:/app/src
+      - ./data:/data:ro
+    command: uv run uvicorn embeddings_service.app:app --reload --host 0.0.0.0
+
+  search:
+    build:
+      context: ./services/search
+    volumes:
+      - ./services/search/src:/app/src
+      - ./data:/data
+    command: uv run uvicorn search_service.app:app --reload --host 0.0.0.0
+
+  geometric:
+    build:
+      context: ./services/geometric
+    volumes:
+      - ./services/geometric/src:/app/src
+      - ./data:/data:ro
+    command: uv run uvicorn geometric_service.app:app --reload --host 0.0.0.0
+
+  gateway:
+    build:
+      context: ./services/gateway
+    volumes:
+      - ./services/gateway/src:/app/src
+      - ./data:/data:ro
+    command: uv run uvicorn gateway.app:app --reload --host 0.0.0.0

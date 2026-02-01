@@ -1,0 +1,23 @@
+# Search Service Configuration
+# Environment variable overrides use prefix: SEARCH__
+# Example: SEARCH__FAISS__EMBEDDING_DIMENSION=1024
+
+faiss:
+  embedding_dimension: 768
+  index_type: "flat"                # flat, ivf, hnsw
+  metric: "inner_product"           # inner_product, l2
+
+index:
+  path: "/data/index/faiss.index"
+  metadata_path: "/data/index/metadata.json"
+  auto_load: true                   # Load index on startup if exists
+
+search:
+  default_k: 5
+  max_k: 100
+  default_threshold: 0.0
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+  log_level: "info"

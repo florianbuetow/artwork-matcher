@@ -1,0 +1,61 @@
+services:
+  embeddings:
+    build: ./services/embeddings
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./data:/data:ro
+    environment:
+      - CONFIG_PATH=/app/config.yaml
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  search:
+    build: ./services/search
+    ports:
+      - "8002:8000"
+    volumes:
+      - ./data:/data
+    environment:
+      - CONFIG_PATH=/app/config.yaml
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  geometric:
+    build: ./services/geometric
+    ports:
+      - "8003:8000"
+    volumes:
+      - ./data:/data:ro
+    environment:
+      - CONFIG_PATH=/app/config.yaml
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  gateway:
+    build: ./services/gateway
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data:ro
+    environment:
+      - CONFIG_PATH=/app/config.yaml
+      - EMBEDDINGS_URL=http://embeddings:8000
+      - SEARCH_URL=http://search:8000
+      - GEOMETRIC_URL=http://geometric:8000
+    depends_on:
+      embeddings:
+        condition: service_healthy
+      search:
+        condition: service_healthy
+      geometric:
+        condition: service_healthy

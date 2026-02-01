@@ -1,0 +1,30 @@
+# Geometric Service Configuration
+# Environment variable overrides use prefix: GEOMETRIC__
+# Example: GEOMETRIC__ORB__MAX_FEATURES=2000
+
+orb:
+  max_features: 1000
+  scale_factor: 1.2
+  n_levels: 8
+  edge_threshold: 31
+  patch_size: 31
+  fast_threshold: 20
+
+matching:
+  ratio_threshold: 0.75             # Lowe's ratio test threshold
+  cross_check: false
+
+ransac:
+  reproj_threshold: 5.0             # Maximum reprojection error (pixels)
+  max_iters: 2000
+  confidence: 0.995
+
+verification:
+  min_features: 50                  # Minimum features required per image
+  min_matches: 20                   # Minimum matches before RANSAC
+  min_inliers: 10                   # Minimum inliers to declare match
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+  log_level: "info"

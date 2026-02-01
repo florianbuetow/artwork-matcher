@@ -1,0 +1,33 @@
+# Default recipe: show available commands
+_default:
+    @just --list
+
+# Initialize the tools environment
+init:
+    @echo ""
+    @echo "\033[0;34m=== Initializing Tools Environment ===\033[0m"
+    @uv sync
+    @echo "\033[0;32m✓ Tools environment ready\033[0m"
+    @echo ""
+
+# Destroy the virtual environment
+destroy:
+    @echo ""
+    @echo "\033[0;34m=== Destroying Virtual Environment ===\033[0m"
+    @rm -rf .venv
+    @echo "\033[0;32m✓ Virtual environment removed\033[0m"
+    @echo ""
+
+# Build the FAISS index from object images
+build-index:
+    @echo ""
+    @echo "\033[0;34m=== Building Index ===\033[0m"
+    @uv run python build_index.py
+    @echo ""
+
+# Evaluate accuracy against labels.csv
+evaluate:
+    @echo ""
+    @echo "\033[0;34m=== Evaluating Accuracy ===\033[0m"
+    @uv run python evaluate.py
+    @echo ""
