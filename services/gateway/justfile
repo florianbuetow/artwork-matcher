@@ -41,13 +41,42 @@ destroy:
     @echo "\033[0;32m✓ Virtual environment removed\033[0m"
     @echo ""
 
-# === Run Service ===
+# === Run Service (Local) ===
 
-# Run the service with hot reload
+# Run the service locally (no Docker) with hot reload
 run:
     @echo ""
-    @echo "\033[0;34m=== Running Gateway Service on port 8000 ===\033[0m"
+    @echo "\033[0;34m=== Running Gateway Service Locally on port 8000 ===\033[0m"
     @uv run uvicorn gateway.app:app --reload --host 0.0.0.0 --port 8000
+
+# Stop the locally running service
+kill:
+    #!/usr/bin/env bash
+    echo ""
+    echo "\033[0;34m=== Stopping Gateway Service (Local) ===\033[0m"
+    echo ""
+
+    if pgrep -f "uvicorn gateway" > /dev/null; then
+        echo "Service is running. Stopping..."
+        pkill -f "uvicorn gateway"
+        sleep 1
+
+        if pgrep -f "uvicorn gateway" > /dev/null; then
+            echo "\033[0;31m✗ Service still running. Forcing kill...\033[0m"
+            pkill -9 -f "uvicorn gateway"
+            sleep 1
+        fi
+
+        if pgrep -f "uvicorn gateway" > /dev/null; then
+            echo "\033[0;31m✗ Failed to stop service\033[0m"
+            exit 1
+        else
+            echo "\033[0;32m✓ Service stopped\033[0m"
+        fi
+    else
+        echo "Service is not running"
+    fi
+    echo ""
 
 # === Code Quality ===
 
