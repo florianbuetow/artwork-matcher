@@ -217,7 +217,6 @@ reports/
 # Per-service artifacts
 services/*/reports/
 services/*/.venv/
-services/*/uv.lock
 services/*/__pycache__/
 services/*/.pytest_cache/
 services/*/.mypy_cache/
@@ -225,7 +224,6 @@ services/*/.ruff_cache/
 
 # Tools
 tools/.venv/
-tools/uv.lock
 tools/__pycache__/
 tools/.pytest_cache/
 tools/.mypy_cache/
