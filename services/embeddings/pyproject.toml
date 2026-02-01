@@ -10,8 +10,8 @@ dependencies = [
     "torch>=2.5.0",
     "transformers>=4.47.0",
     "pydantic>=2.10.0",
-    "pydantic-settings>=2.7.0",
     "pyyaml>=6.0.0",
+    "numpy>=1.26.0",
 ]
 
 [project.optional-dependencies]
@@ -29,6 +29,7 @@ dev = [
     "semgrep>=1.99.0",
     "pip-audit>=2.7.0",
     "pygount>=1.8.0",
+    "types-PyYAML>=6.0.0",
 ]
 
 [build-system]
@@ -66,6 +67,11 @@ ignore = [
     "PLR2004",  # Magic value comparison
 ]
 
+[tool.ruff.lint.per-file-ignores]
+# nosemgrep comments trigger false positive ERA001 (commented-out code)
+"src/embeddings_service/core/exceptions.py" = ["ERA001"]
+"src/embeddings_service/core/lifespan.py" = ["ERA001"]
+
 [tool.ruff.lint.isort]
 known-first-party = ["embeddings_service"]
 
@@ -95,6 +101,10 @@ files = ["src"]
 module = "tests.*"
 disallow_untyped_defs = false
 
+[[tool.mypy.overrides]]
+module = "transformers.*"
+ignore_missing_imports = true
+
 # === Bandit ===
 [tool.bandit]
 exclude_dirs = ["tests", ".venv"]
@@ -105,10 +115,11 @@ skips = ["B101"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 asyncio_mode = "auto"
-addopts = "-v --tb=short"
+addopts = "-v --tb=short --strict-markers"
 markers = [
-    "unit: Unit tests",
+    "unit: Unit tests (fast, isolated, no external dependencies)",
     "integration: Integration tests (require running services)",
+    "slow: Tests that take more than 1 second",
 ]
 
 # === Coverage ===
@@ -131,3 +142,22 @@ show_missing = true
 # === Deptry ===
 [tool.deptry]
 extend_exclude = [".venv", "tests"]
+
+[tool.deptry.per_rule_ignores]
+# Dev dependencies are tools, not imported in code
+DEP002 = [
+    "pytest",
+    "pytest-cov",
+    "pytest-asyncio",
+    "httpx",
+    "ruff",
+    "mypy",
+    "pyright",
+    "bandit",
+    "deptry",
+    "codespell",
+    "semgrep",
+    "pip-audit",
+    "pygount",
+    "types-PyYAML",
+]

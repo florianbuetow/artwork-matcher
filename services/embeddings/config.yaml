@@ -2,10 +2,16 @@
 # Environment variable overrides use prefix: EMBEDDINGS__
 # Example: EMBEDDINGS__MODEL__DEVICE=cuda
 
+service:
+  name: "embeddings"
+  version: "0.1.0"
+
 model:
   name: "facebook/dinov2-base"
   device: "auto"                    # auto, cpu, cuda, mps
   embedding_dimension: 768
+  cache_dir: "data/models"          # Local model storage directory
+  revision: "main"                  # Git revision (branch, tag, or commit hash)
 
 preprocessing:
   image_size: 518                   # DINOv2 native input size
@@ -14,4 +20,7 @@ preprocessing:
 server:
   host: "0.0.0.0"
   port: 8000
-  log_level: "info"
+
+logging:
+  level: "INFO"
+  format: "json"

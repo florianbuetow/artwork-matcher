@@ -41,13 +41,100 @@ destroy:
     @echo "\033[0;32m✓ Virtual environment removed\033[0m"
     @echo ""
 
-# === Run Service ===
+# === Run Service (Local) ===
 
-# Run the service with hot reload
+# Run the service locally (no Docker) with hot reload
 run:
     @echo ""
-    @echo "\033[0;34m=== Running Embeddings Service on port 8001 ===\033[0m"
-    @uv run uvicorn embeddings_service.app:app --reload --host 0.0.0.0 --port 8001
+    @echo "\033[0;34m=== Running Embeddings Service Locally on port 8001 ===\033[0m"
+    @uv run uvicorn embeddings_service.app:create_app --factory --reload --host 0.0.0.0 --port 8001
+
+# Stop the locally running service
+kill:
+    #!/usr/bin/env bash
+    echo ""
+    echo "\033[0;34m=== Stopping Embeddings Service (Local) ===\033[0m"
+    echo ""
+
+    if pgrep -f "uvicorn embeddings_service" > /dev/null; then
+        echo "Service is running. Stopping..."
+        pkill -f "uvicorn embeddings_service"
+        sleep 1
+
+        if pgrep -f "uvicorn embeddings_service" > /dev/null; then
+            echo "\033[0;31m✗ Service still running. Forcing kill...\033[0m"
+            pkill -9 -f "uvicorn embeddings_service"
+            sleep 1
+        fi
+
+        if pgrep -f "uvicorn embeddings_service" > /dev/null; then
+            echo "\033[0;31m✗ Failed to stop service\033[0m"
+            exit 1
+        else
+            echo "\033[0;32m✓ Service stopped\033[0m"
+        fi
+    else
+        echo "Service is not running"
+    fi
+    echo ""
+
+# === Docker ===
+
+# Run service in Docker (production mode, detached)
+docker-up:
+    @echo ""
+    @echo "\033[0;34m=== Starting Embeddings Service in Docker ===\033[0m"
+    @cd ../.. && docker compose up -d embeddings
+    @echo ""
+    @echo "\033[0;32m✓ Service running at http://localhost:8001\033[0m"
+    @echo "  View logs: just docker-logs"
+    @echo ""
+
+# Run service in Docker (development mode with hot reload)
+docker-up-dev:
+    @echo ""
+    @echo "\033[0;34m=== Starting Embeddings Service in Docker (Dev Mode) ===\033[0m"
+    @cd ../.. && docker compose -f docker-compose.yml -f docker-compose.dev.yml up embeddings
+
+# Stop service in Docker
+docker-down:
+    @echo ""
+    @echo "\033[0;34m=== Stopping Embeddings Service ===\033[0m"
+    @cd ../.. && docker compose stop embeddings
+    @echo "\033[0;32m✓ Service stopped\033[0m"
+    @echo ""
+
+# View Docker logs for this service
+docker-logs:
+    @cd ../.. && docker compose logs -f embeddings
+
+# Build Docker image for this service
+docker-build:
+    @echo ""
+    @echo "\033[0;34m=== Building Embeddings Docker Image ===\033[0m"
+    @cd ../.. && docker compose build embeddings
+    @echo "\033[0;32m✓ Image built\033[0m"
+    @echo ""
+
+# Check health status of this service
+status:
+    #!/usr/bin/env bash
+    echo ""
+    echo "\033[0;34m=== Embeddings Service Status ===\033[0m"
+    echo ""
+    if response=$(curl -s --connect-timeout 2 "http://localhost:8001/health" 2>/dev/null); then
+        status=$(echo "$response" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+        uptime=$(echo "$response" | grep -o '"uptime":"[^"]*"' | cut -d'"' -f4)
+        if [ "$status" = "healthy" ]; then
+            echo "\033[0;32m✓ Embeddings\033[0m (port 8001) - healthy"
+            [ -n "$uptime" ] && echo "  Uptime: $uptime"
+        else
+            echo "\033[0;33m⚠ Embeddings\033[0m (port 8001) - ${status:-unknown}"
+        fi
+    else
+        echo "\033[0;31m✗ Embeddings\033[0m (port 8001) - not responding"
+    fi
+    echo ""
 
 # === Code Quality ===
 
@@ -155,11 +242,25 @@ code-semgrep:
 
 # === Testing ===
 
-# Run unit tests only (fast)
+# Run all tests (unit + integration)
 test:
     @echo ""
-    @echo "\033[0;34m=== Running Unit Tests ===\033[0m"
+    @echo "\033[0;34m=== Running All Tests ===\033[0m"
     @uv run pytest tests/ -v
+    @echo ""
+
+# Run unit tests only (fast, isolated, no model loading)
+test-unit:
+    @echo ""
+    @echo "\033[0;34m=== Running Unit Tests ===\033[0m"
+    @uv run pytest tests/unit -m unit -v
+    @echo ""
+
+# Run integration tests only (requires model, slower)
+test-integration:
+    @echo ""
+    @echo "\033[0;34m=== Running Integration Tests ===\033[0m"
+    @uv run pytest tests/integration -m integration -v
     @echo ""
 
 # Run unit tests with coverage report and threshold check
@@ -179,7 +280,7 @@ test-coverage: init
 
 # === CI Pipelines ===
 
-# Run ALL validation checks (verbose)
+# Run ALL validation checks (verbose) - uses unit tests for speed
 ci:
     #!/usr/bin/env bash
     set -e
@@ -195,13 +296,26 @@ ci:
     just code-spell
     just code-semgrep
     just code-audit
-    just test
+    just test-unit
     just code-lspchecks
     echo ""
     echo "\033[0;32m✓ All CI checks passed\033[0m"
     echo ""
 
-# Run ALL validation checks silently (only show output on errors)
+# Run full CI including integration tests (slower, requires model)
+ci-all:
+    #!/usr/bin/env bash
+    set -e
+    echo ""
+    echo "\033[0;34m=== Running All CI Checks (with Integration Tests) ===\033[0m"
+    echo ""
+    just ci
+    just test-integration
+    echo ""
+    echo "\033[0;32m✓ All CI checks (including integration tests) passed\033[0m"
+    echo ""
+
+# Run ALL validation checks silently (only show output on errors) - uses unit tests for speed
 ci-quiet:
     #!/usr/bin/env bash
     set -e
@@ -236,8 +350,8 @@ ci-quiet:
     just code-audit > $TMPFILE 2>&1 || { echo "\033[0;31m✗ Code-audit failed\033[0m"; cat $TMPFILE; exit 1; }
     echo "\033[0;32m✓ Code-audit passed\033[0m"
 
-    just test > $TMPFILE 2>&1 || { echo "\033[0;31m✗ Test failed\033[0m"; cat $TMPFILE; exit 1; }
-    echo "\033[0;32m✓ Test passed\033[0m"
+    just test-unit > $TMPFILE 2>&1 || { echo "\033[0;31m✗ Unit tests failed\033[0m"; cat $TMPFILE; exit 1; }
+    echo "\033[0;32m✓ Unit tests passed\033[0m"
 
     just code-lspchecks > $TMPFILE 2>&1 || { echo "\033[0;31m✗ Code-lspchecks failed\033[0m"; cat $TMPFILE; exit 1; }
     echo "\033[0;32m✓ Code-lspchecks passed\033[0m"
