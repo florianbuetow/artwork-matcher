@@ -52,31 +52,31 @@ run:
 # Stop the locally running service
 kill:
     #!/usr/bin/env bash
-    echo ""
-    echo "\033[0;34m=== Stopping Embeddings Service (Local) ===\033[0m"
-    echo ""
+    printf "\n"
+    printf "\033[0;34m=== Stopping Embeddings Service (Local) ===\033[0m\n"
+    printf "\n"
 
     if pgrep -f "uvicorn embeddings_service" > /dev/null; then
-        echo "Service is running. Stopping..."
+        printf "Service is running. Stopping...\n"
         pkill -f "uvicorn embeddings_service"
         sleep 1
 
         if pgrep -f "uvicorn embeddings_service" > /dev/null; then
-            echo "\033[0;31m✗ Service still running. Forcing kill...\033[0m"
+            printf "\033[0;31m✗ Service still running. Forcing kill...\033[0m\n"
             pkill -9 -f "uvicorn embeddings_service"
             sleep 1
         fi
 
         if pgrep -f "uvicorn embeddings_service" > /dev/null; then
-            echo "\033[0;31m✗ Failed to stop service\033[0m"
+            printf "\033[0;31m✗ Failed to stop service\033[0m\n"
             exit 1
         else
-            echo "\033[0;32m✓ Service stopped\033[0m"
+            printf "\033[0;32m✓ Service stopped\033[0m\n"
         fi
     else
-        echo "Service is not running"
+        printf "Service is not running\n"
     fi
-    echo ""
+    printf "\n"
 
 # === Docker ===
 
@@ -119,22 +119,22 @@ docker-build:
 # Check health status of this service
 status:
     #!/usr/bin/env bash
-    echo ""
-    echo "\033[0;34m=== Embeddings Service Status ===\033[0m"
-    echo ""
+    printf "\n"
+    printf "\033[0;34m=== Embeddings Service Status ===\033[0m\n"
+    printf "\n"
     if response=$(curl -s --connect-timeout 2 "http://localhost:8001/health" 2>/dev/null); then
         status=$(echo "$response" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
         uptime=$(echo "$response" | grep -o '"uptime":"[^"]*"' | cut -d'"' -f4)
         if [ "$status" = "healthy" ]; then
-            echo "\033[0;32m✓ Embeddings\033[0m (port 8001) - healthy"
-            [ -n "$uptime" ] && echo "  Uptime: $uptime"
+            printf "\033[0;32m✓ Embeddings\033[0m (port 8001) - healthy\n"
+            [ -n "$uptime" ] && printf "  Uptime: %s\n" "$uptime"
         else
-            echo "\033[0;33m⚠ Embeddings\033[0m (port 8001) - ${status:-unknown}"
+            printf "\033[0;33m⚠ Embeddings\033[0m (port 8001) - %s\n" "${status:-unknown}"
         fi
     else
-        echo "\033[0;31m✗ Embeddings\033[0m (port 8001) - not responding"
+        printf "\033[0;31m✗ Embeddings\033[0m (port 8001) - not responding\n"
     fi
-    echo ""
+    printf "\n"
 
 # === Code Quality ===
 
@@ -261,6 +261,13 @@ test-integration:
     @echo ""
     @echo "\033[0;34m=== Running Integration Tests ===\033[0m"
     @uv run pytest tests/integration -m integration -v
+    @echo ""
+
+# Run performance tests (requires model, slow)
+test-performance:
+    @echo ""
+    @echo "\033[0;34m=== Running Performance Tests ===\033[0m"
+    @uv run pytest tests/performance -m performance -v -s
     @echo ""
 
 # Run unit tests with coverage report and threshold check

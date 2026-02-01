@@ -52,31 +52,31 @@ run:
 # Stop the locally running service
 kill:
     #!/usr/bin/env bash
-    echo ""
-    echo "\033[0;34m=== Stopping Geometric Service (Local) ===\033[0m"
-    echo ""
+    printf "\n"
+    printf "\033[0;34m=== Stopping Geometric Service (Local) ===\033[0m\n"
+    printf "\n"
 
     if pgrep -f "uvicorn geometric_service" > /dev/null; then
-        echo "Service is running. Stopping..."
+        printf "Service is running. Stopping...\n"
         pkill -f "uvicorn geometric_service"
         sleep 1
 
         if pgrep -f "uvicorn geometric_service" > /dev/null; then
-            echo "\033[0;31m✗ Service still running. Forcing kill...\033[0m"
+            printf "\033[0;31m✗ Service still running. Forcing kill...\033[0m\n"
             pkill -9 -f "uvicorn geometric_service"
             sleep 1
         fi
 
         if pgrep -f "uvicorn geometric_service" > /dev/null; then
-            echo "\033[0;31m✗ Failed to stop service\033[0m"
+            printf "\033[0;31m✗ Failed to stop service\033[0m\n"
             exit 1
         else
-            echo "\033[0;32m✓ Service stopped\033[0m"
+            printf "\033[0;32m✓ Service stopped\033[0m\n"
         fi
     else
-        echo "Service is not running"
+        printf "Service is not running\n"
     fi
-    echo ""
+    printf "\n"
 
 # === Code Quality ===
 
