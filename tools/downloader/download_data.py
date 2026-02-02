@@ -62,6 +62,16 @@ OBJECT_NUMBER_CLASSIFIER = "300312355"
 console = Console()
 
 
+def load_yaml_config() -> dict[str, Any]:
+    """Load configuration from config.yaml."""
+    config_path = Path(__file__).parent / "config.yaml"
+    if config_path.exists():
+        import yaml
+        with config_path.open() as f:
+            return yaml.safe_load(f) or {}
+    return {}
+
+
 @dataclass
 class DownloadConfig:
     """Configuration for the data downloader."""
@@ -72,10 +82,15 @@ class DownloadConfig:
     timeout: float = 30.0
     max_retries: int = 3
     retry_delay: float = 5.0
+    # Diverse mode settings
+    types: list[str] = field(default_factory=list)
+    per_type: int = 10
 
 
 def load_config(args: argparse.Namespace) -> DownloadConfig:
-    """Load configuration from CLI args."""
+    """Load configuration from CLI args and config.yaml."""
+    yaml_config = load_yaml_config()
+
     if args.download_dir:
         download_dir = Path(args.download_dir)
     else:
@@ -83,13 +98,20 @@ def load_config(args: argparse.Namespace) -> DownloadConfig:
         project_root = Path(__file__).parent.parent.parent
         download_dir = project_root / "data" / "downloads"
 
+    # Get settings from yaml with defaults
+    rate_limit = yaml_config.get("rate_limit", {})
+    request = yaml_config.get("request", {})
+    batch = yaml_config.get("batch", {})
+
     return DownloadConfig(
         download_dir=download_dir,
-        rate_limit_delay=0.5,
-        chunk_size=8192,
-        timeout=30.0,
-        max_retries=3,
-        retry_delay=5.0,
+        rate_limit_delay=rate_limit.get("delay", 0.5),
+        chunk_size=request.get("chunk_size", 8192),
+        timeout=request.get("timeout", 30.0),
+        max_retries=rate_limit.get("max_retries", 3),
+        retry_delay=rate_limit.get("retry_delay", 5.0),
+        types=yaml_config.get("types", []),
+        per_type=batch.get("per_type", 10),
     )
 
 
@@ -183,15 +205,23 @@ class RijksmuseumDownloader:
     # Search API
     # =========================================================================
 
-    def search(self, page_token: str | None = None) -> tuple[list[str], str | None, int]:
+    def search(
+        self, page_token: str | None = None, object_type: str | None = None
+    ) -> tuple[list[str], str | None, int]:
         """
         Search collection using the new Search API.
+
+        Args:
+            page_token: Pagination token for next page
+            object_type: Filter by object type (e.g., "painting", "sculpture")
 
         Returns (list of object IDs, next_page_token, total_count).
         """
         params: dict[str, Any] = {"imageAvailable": "true"}
         if page_token:
             params["pageToken"] = page_token
+        if object_type:
+            params["type"] = object_type
 
         data = self._make_request(SEARCH_API, params)
         if data is None:
@@ -350,20 +380,29 @@ class RijksmuseumDownloader:
     # Main Download Logic
     # =========================================================================
 
-    def download_all(self, limit: int | None = None, force: bool = False) -> DownloadStats:
-        """Download collection data."""
+    def download_all(
+        self,
+        limit: int | None = None,
+        force: bool = False,
+        object_type: str | None = None,
+    ) -> DownloadStats:
+        """Download collection data, optionally filtered by type."""
         self.ensure_dirs()
         self.stats = DownloadStats()
 
         console.print("[blue]Using Rijksmuseum Linked Art API[/blue]")
 
+        # Use type-specific state key if filtering by type
+        state_key = f"state_{object_type}" if object_type else "state"
         state = {} if force else self.load_state()
+        type_state = state.get(state_key, {}) if object_type else state
         downloaded_ids = set(state.get("downloaded_ids", []))
-        page_token = None if force else state.get("next_page_token")
+        page_token = None if force else type_state.get("next_page_token")
 
         # Get initial count
-        console.print("[blue]Querying collection...[/blue]")
-        _, _, total_available = self.search()
+        type_desc = f" ({object_type})" if object_type else ""
+        console.print(f"[blue]Querying collection{type_desc}...[/blue]")
+        _, _, total_available = self.search(object_type=object_type)
 
         if total_available == 0:
             console.print("[yellow]No objects found or API unavailable[/yellow]")
@@ -398,7 +437,7 @@ class RijksmuseumDownloader:
 
             while new_downloads < total_to_download:
                 # Search for objects
-                object_ids, next_token, _ = self.search(page_token)
+                object_ids, next_token, _ = self.search(page_token, object_type)
 
                 if not object_ids:
                     console.print("[yellow]No more objects to fetch[/yellow]")
@@ -455,13 +494,139 @@ class RijksmuseumDownloader:
                 # Save state after each page
                 page_token = next_token
                 state["downloaded_ids"] = list(downloaded_ids)
-                state["next_page_token"] = page_token
+                if object_type:
+                    state[state_key] = {"next_page_token": page_token}
+                else:
+                    state["next_page_token"] = page_token
                 self.save_state(state)
 
                 if not next_token:
                     break
 
         return self.stats
+
+    def download_diverse(self, force: bool = False) -> DownloadStats:
+        """Download objects from multiple types for variety.
+
+        Downloads config.per_type objects from each type in config.types.
+        """
+        self.ensure_dirs()
+        self.stats = DownloadStats()
+
+        if not self.config.types:
+            console.print("[red]No types configured in config.yaml[/red]")
+            return self.stats
+
+        console.print("[blue]Using Rijksmuseum Linked Art API (diverse mode)[/blue]")
+        console.print(f"[blue]Downloading {self.config.per_type} objects from each of {len(self.config.types)} types[/blue]")
+        console.print()
+
+        state = {} if force else self.load_state()
+        downloaded_ids = set(state.get("downloaded_ids", []))
+
+        total_types = len(self.config.types)
+        self.stats.total_requested = total_types * self.config.per_type
+
+        for i, object_type in enumerate(self.config.types, 1):
+            console.print(f"[cyan]({i}/{total_types}) Downloading {object_type}...[/cyan]")
+
+            type_stats = self._download_type(
+                object_type=object_type,
+                limit=self.config.per_type,
+                downloaded_ids=downloaded_ids,
+                state=state,
+                force=force,
+            )
+
+            # Accumulate stats
+            self.stats.downloaded_objects += type_stats["downloaded"]
+            self.stats.skipped_existing += type_stats["skipped_existing"]
+            self.stats.skipped_not_downloadable += type_stats["skipped_not_downloadable"]
+            self.stats.skipped_no_image += type_stats["skipped_no_image"]
+            self.stats.failed += type_stats["failed"]
+
+            console.print(f"  [green]Downloaded {type_stats['downloaded']}[/green]")
+
+        return self.stats
+
+    def _download_type(
+        self,
+        object_type: str,
+        limit: int,
+        downloaded_ids: set[str],
+        state: dict[str, Any],
+        force: bool,
+    ) -> dict[str, int]:
+        """Download objects of a specific type.
+
+        Returns dict with download statistics for this type.
+        """
+        stats = {
+            "downloaded": 0,
+            "skipped_existing": 0,
+            "skipped_not_downloadable": 0,
+            "skipped_no_image": 0,
+            "failed": 0,
+        }
+
+        state_key = f"state_{object_type}"
+        type_state = state.get(state_key, {}) if not force else {}
+        page_token = type_state.get("next_page_token")
+
+        new_downloads = 0
+
+        while new_downloads < limit:
+            object_ids, next_token, _ = self.search(page_token, object_type)
+
+            if not object_ids:
+                break
+
+            for obj_id in object_ids:
+                if new_downloads >= limit:
+                    break
+
+                image_url, obj_data, object_number = self.resolve_image_url(obj_id)
+                file_id = object_number or obj_id
+
+                if file_id in downloaded_ids:
+                    stats["skipped_existing"] += 1
+                    continue
+
+                if image_url is None:
+                    stats["skipped_no_image"] += 1
+                    new_downloads += 1
+                    continue
+
+                if image_url == "NOT_DOWNLOADABLE":
+                    stats["skipped_not_downloadable"] += 1
+                    new_downloads += 1
+                    continue
+
+                image_path = self.config.download_dir / "images" / f"{file_id}.jpg"
+                if not self.download_image(image_url, image_path):
+                    stats["failed"] += 1
+                    new_downloads += 1
+                    continue
+
+                metadata_path = self.config.download_dir / "metadata" / f"{file_id}.json"
+                with metadata_path.open("w") as f:
+                    json.dump(obj_data, f, indent=2, ensure_ascii=False)
+
+                stats["downloaded"] += 1
+                downloaded_ids.add(file_id)
+                new_downloads += 1
+
+                time.sleep(self.config.rate_limit_delay)
+
+            page_token = next_token
+            state["downloaded_ids"] = list(downloaded_ids)
+            state[state_key] = {"next_page_token": page_token}
+            self.save_state(state)
+
+            if not next_token:
+                break
+
+        return stats
 
 
 def print_summary(stats: DownloadStats, config: DownloadConfig) -> None:
@@ -498,31 +663,37 @@ Downloads metadata (JSON) and max-resolution images (JPEG) for objects
 that have downloadable images.
 
 Examples:
-  # Download 10 objects
-  uv run python download_data.py --limit 10
+  # Default: diverse download (10 objects from each type)
+  uv run python download_data.py
 
-  # Force re-download
-  uv run python download_data.py --force --limit 10
+  # Download from a specific type only
+  uv run python download_data.py --type painting --limit 50
 
-  # Custom download directory
-  uv run python download_data.py --download-dir /path/to/data --limit 100
+  # Download all types sequentially (not diverse)
+  uv run python download_data.py --no-diverse --limit 100
+
+  # Force re-download (reset state)
+  uv run python download_data.py --force
         """,
     )
     parser.add_argument("--download-dir", type=Path, help="Download directory")
-    parser.add_argument("--limit", type=int, help="Max objects to download")
-    parser.add_argument("--force", action="store_true", help="Force re-download")
-    parser.add_argument("--info", action="store_true", help="Show API info")
+    parser.add_argument("--limit", type=int, help="Max objects to download (per type in diverse mode)")
+    parser.add_argument("--type", dest="object_type", help="Download specific type only (e.g., painting)")
+    parser.add_argument("--no-diverse", action="store_true", help="Disable diverse mode (download sequentially)")
+    parser.add_argument("--force", action="store_true", help="Force re-download (reset state)")
+    parser.add_argument("--info", action="store_true", help="Show config and API info")
     return parser.parse_args()
 
 
 def main() -> int:
     """Main entry point."""
     args = parse_args()
+    config = load_config(args)
 
     if args.info:
         console.print("\n[bold]Rijksmuseum Data Downloader v2.0[/bold]\n")
 
-        table = Table()
+        table = Table(title="API Endpoints")
         table.add_column("API", style="cyan")
         table.add_column("URL")
         table.add_column("Key Required")
@@ -532,6 +703,11 @@ def main() -> int:
         table.add_row("IIIF Images", "iiif.micr.io/{id}/full/max/0/default.jpg", "[green]No[/green]")
 
         console.print(table)
+        console.print()
+
+        console.print("[bold]Diverse Mode Configuration:[/bold]")
+        console.print(f"  Per-type batch size: {config.per_type}")
+        console.print(f"  Types ({len(config.types)}): {', '.join(config.types)}")
         console.print()
         console.print("[dim]All data is CC0 (public domain)[/dim]")
         console.print()
@@ -543,13 +719,27 @@ def main() -> int:
     console.print("[bold blue]" + "=" * 60 + "[/bold blue]")
     console.print()
 
-    config = load_config(args)
+    # Override per_type if --limit is specified
+    if args.limit:
+        config.per_type = args.limit
 
     with RijksmuseumDownloader(config) as downloader:
-        stats = downloader.download_all(
-            limit=args.limit,
-            force=args.force,
-        )
+        if args.object_type:
+            # Single type mode
+            stats = downloader.download_all(
+                limit=args.limit or config.per_type,
+                force=args.force,
+                object_type=args.object_type,
+            )
+        elif args.no_diverse:
+            # Sequential mode (old behavior)
+            stats = downloader.download_all(
+                limit=args.limit,
+                force=args.force,
+            )
+        else:
+            # Default: diverse mode
+            stats = downloader.download_diverse(force=args.force)
 
     print_summary(stats, config)
     return 1 if stats.failed > 0 else 0

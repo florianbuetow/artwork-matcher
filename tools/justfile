@@ -50,9 +50,9 @@ download-test:
     @uv run python downloader/download_data.py --limit 5
     @echo ""
 
-# Download batch of 500 objects (incremental, resumes from last run)
+# Download diverse batch (default: 10 objects per type, configurable in config.yaml)
 download-batch:
     @echo ""
-    @printf "\033[0;34m=== Downloading batch (500 objects) ===\033[0m\n"
-    @uv run python downloader/download_data.py --limit 500
+    @printf "\033[0;34m=== Downloading diverse batch ===\033[0m\n"
+    @uv run python downloader/download_data.py
     @echo ""

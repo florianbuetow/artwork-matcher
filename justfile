@@ -208,7 +208,7 @@ format-all:
 
 # === Data Pipeline ===
 
-# Download batch of 500 objects from Rijksmuseum (incremental, resumes from last run)
+# Download diverse batch from Rijksmuseum (10 objects per type, configurable)
 download-batch:
     cd tools && just download-batch
 
