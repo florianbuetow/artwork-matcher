@@ -27,6 +27,7 @@ init:
     @mkdir -p reports/security
     @mkdir -p reports/pyright
     @mkdir -p reports/deptry
+    @mkdir -p reports/performance
     @echo "Installing Python dependencies..."
     @uv sync --all-extras
     @printf "\033[0;32m✓ Development environment ready\033[0m\n"
@@ -47,7 +48,7 @@ destroy:
 run:
     @echo ""
     @printf "\033[0;34m=== Running Search Service Locally on port 8002 ===\033[0m\n"
-    @uv run uvicorn search_service.app:app --reload --host 0.0.0.0 --port 8002
+    @uv run uvicorn search_service.app:create_app --factory --reload --host 0.0.0.0 --port 8002
 
 # Stop the locally running service
 kill:
@@ -79,6 +80,71 @@ kill:
         fi
     else
         printf "Service is not running\n"
+    fi
+    printf "\n"
+
+# === Docker ===
+
+# Run service in Docker (production mode, detached)
+docker-up:
+    @echo ""
+    @printf "\033[0;34m=== Starting Search Service in Docker ===\033[0m\n"
+    @cd ../.. && docker compose up -d search
+    @echo ""
+    @printf "\033[0;32m✓ Service running at http://localhost:8002\033[0m\n"
+    @echo "  View logs: just docker-logs"
+    @echo ""
+
+# Run service in Docker (development mode with hot reload)
+docker-up-dev:
+    @echo ""
+    @printf "\033[0;34m=== Starting Search Service in Docker (Dev Mode) ===\033[0m\n"
+    @cd ../.. && docker compose -f docker-compose.yml -f docker-compose.dev.yml up search
+
+# Stop service in Docker
+docker-down:
+    @echo ""
+    @printf "\033[0;34m=== Stopping Search Service ===\033[0m\n"
+    @cd ../.. && docker compose stop search
+    @printf "\033[0;32m✓ Service stopped\033[0m\n"
+    @echo ""
+
+# View Docker logs for this service
+docker-logs:
+    @cd ../.. && docker compose logs -f search
+
+# Build Docker image for this service
+docker-build:
+    @echo ""
+    @printf "\033[0;34m=== Building Search Docker Image ===\033[0m\n"
+    @cd ../.. && docker compose build search
+    @printf "\033[0;32m✓ Image built\033[0m\n"
+    @echo ""
+
+# Check health status of this service
+status:
+    #!/usr/bin/env bash
+    printf "\n"
+    printf "\033[0;34m=== Search Service Status ===\033[0m\n"
+    printf "\n"
+    if health_response=$(curl -s --connect-timeout 2 "http://localhost:8002/health" 2>/dev/null); then
+        status=$(echo "$health_response" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+        if [ "$status" = "healthy" ]; then
+            printf "\033[0;32m✓ Search\033[0m (port 8002) - healthy\n"
+            # Fetch additional info
+            if info_response=$(curl -s --connect-timeout 2 "http://localhost:8002/info" 2>/dev/null); then
+                version=$(echo "$info_response" | grep -o '"version":"[^"]*"' | cut -d'"' -f4)
+                count=$(echo "$info_response" | grep -o '"count":[0-9]*' | cut -d':' -f2)
+                dimension=$(echo "$info_response" | grep -o '"embedding_dimension":[0-9]*' | cut -d':' -f2)
+                [ -n "$version" ] && printf "  Version: %s\n" "$version"
+                [ -n "$count" ] && printf "  Index count: %s\n" "$count"
+                [ -n "$dimension" ] && printf "  Embedding dimension: %s\n" "$dimension"
+            fi
+        else
+            printf "\033[0;33m⚠ Search\033[0m (port 8002) - %s\n" "${status:-unknown}"
+        fi
+    else
+        printf "\033[0;31m✗ Search\033[0m (port 8002) - not responding\n"
     fi
     printf "\n"
 
@@ -188,11 +254,34 @@ code-semgrep:
 
 # === Testing ===
 
-# Run unit tests only (fast)
+# Run all tests (unit + integration in separate processes for isolation)
 test:
     @echo ""
+    @printf "\033[0;34m=== Running All Tests ===\033[0m\n"
+    @just test-unit
+    @just test-integration
+    @printf "\033[0;32m✓ All tests passed\033[0m\n"
+    @echo ""
+
+# Run unit tests only (fast, isolated)
+test-unit:
+    @echo ""
     @printf "\033[0;34m=== Running Unit Tests ===\033[0m\n"
-    @uv run pytest tests/ -v
+    @uv run pytest tests/unit -m unit -v
+    @echo ""
+
+# Run integration tests only (requires running service)
+test-integration:
+    @echo ""
+    @printf "\033[0;34m=== Running Integration Tests ===\033[0m\n"
+    @uv run pytest tests/integration -m integration -v
+    @echo ""
+
+# Run performance tests (slow)
+test-performance:
+    @echo ""
+    @printf "\033[0;34m=== Running Performance Tests ===\033[0m\n"
+    @uv run pytest tests/performance -m performance -v -s
     @echo ""
 
 # Run unit tests with coverage report and threshold check
@@ -212,7 +301,7 @@ test-coverage: init
 
 # === CI Pipelines ===
 
-# Run ALL validation checks (verbose)
+# Run ALL validation checks (verbose) - uses unit tests for speed
 ci:
     #!/usr/bin/env bash
     set -e
@@ -228,13 +317,26 @@ ci:
     just code-spell
     just code-semgrep
     just code-audit
-    just test
+    just test-unit
     just code-lspchecks
     printf "\n"
     printf "\033[0;32m✓ All CI checks passed\033[0m\n"
     printf "\n"
 
-# Run ALL validation checks silently (only show output on errors)
+# Run full CI including integration tests (slower)
+ci-all:
+    #!/usr/bin/env bash
+    set -e
+    printf "\n"
+    printf "\033[0;34m=== Running All CI Checks (with Integration Tests) ===\033[0m\n"
+    printf "\n"
+    just ci
+    just test-integration
+    printf "\n"
+    printf "\033[0;32m✓ All CI checks (including integration tests) passed\033[0m\n"
+    printf "\n"
+
+# Run ALL validation checks silently (only show output on errors) - uses unit tests for speed
 ci-quiet:
     #!/usr/bin/env bash
     set -e
@@ -269,8 +371,8 @@ ci-quiet:
     just code-audit > $TMPFILE 2>&1 || { printf "\033[0;31m✗ Code-audit failed\033[0m\n"; cat $TMPFILE; exit 1; }
     printf "\033[0;32m✓ Code-audit passed\033[0m\n"
 
-    just test > $TMPFILE 2>&1 || { printf "\033[0;31m✗ Test failed\033[0m\n"; cat $TMPFILE; exit 1; }
-    printf "\033[0;32m✓ Test passed\033[0m\n"
+    just test-unit > $TMPFILE 2>&1 || { printf "\033[0;31m✗ Unit tests failed\033[0m\n"; cat $TMPFILE; exit 1; }
+    printf "\033[0;32m✓ Unit tests passed\033[0m\n"
 
     just code-lspchecks > $TMPFILE 2>&1 || { printf "\033[0;31m✗ Code-lspchecks failed\033[0m\n"; cat $TMPFILE; exit 1; }
     printf "\033[0;32m✓ Code-lspchecks passed\033[0m\n"

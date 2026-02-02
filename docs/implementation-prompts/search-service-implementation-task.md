@@ -46,6 +46,12 @@ Read and follow these documents in order:
    - No hardcoded defaults
    - Git commit guidelines
 
+6. **@docs/implementation-guides/service_testing_guide.md** - Testing patterns:
+   - Three-tier testing (unit, integration, performance)
+   - What to test in each tier
+   - Justfile recipes and pytest markers
+   - Reference: embeddings service tests
+
 ---
 
 ## Existing Files

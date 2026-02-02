@@ -27,6 +27,7 @@ init:
     @mkdir -p reports/security
     @mkdir -p reports/pyright
     @mkdir -p reports/deptry
+    @mkdir -p reports/performance
     @echo "Installing Python dependencies..."
     @uv sync --all-extras
     @printf "\033[0;32m✓ Development environment ready\033[0m\n"
@@ -255,11 +256,13 @@ code-semgrep:
 
 # === Testing ===
 
-# Run all tests (unit + integration)
+# Run all tests (unit + integration in separate processes for isolation)
 test:
     @echo ""
     @printf "\033[0;34m=== Running All Tests ===\033[0m\n"
-    @uv run pytest tests/ -v
+    @just test-unit
+    @just test-integration
+    @printf "\033[0;32m✓ All tests passed\033[0m\n"
     @echo ""
 
 # Run unit tests only (fast, isolated, no model loading)
