@@ -1,0 +1,51 @@
+# Rijksmuseum Data Downloader Configuration
+
+# Output settings
+output:
+  # Download directory (relative to project root)
+  download_dir: "data/downloads"
+
+# Batch download settings
+batch:
+  # Default number of objects to download per type (used in diverse mode and as default limit)
+  per_type: 10
+
+# Object types to download in diverse mode
+# These are iterated in order, downloading batch.per_type from each
+types:
+  - painting
+  - drawing
+  - sculpture
+  - photograph
+  - furniture
+  - textile
+  - jewelry
+  - weapon
+  - armor
+  - tapestry
+  - glass
+  - porcelain
+  - vase
+  - plate
+  - bowl
+  - cup
+  - clock
+  - mirror
+  - miniature
+  - model
+
+# Rate limiting
+rate_limit:
+  # Delay between API requests (seconds)
+  delay: 0.5
+  # Max retries for failed requests
+  max_retries: 3
+  # Delay between retries (seconds)
+  retry_delay: 5.0
+
+# Request settings
+request:
+  # Timeout for API requests (seconds)
+  timeout: 30.0
+  # Chunk size for image downloads (bytes)
+  chunk_size: 8192

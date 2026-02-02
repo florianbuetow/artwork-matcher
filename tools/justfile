@@ -31,3 +31,28 @@ evaluate:
     @printf "\033[0;34m=== Evaluating Accuracy ===\033[0m\n"
     @uv run python evaluate.py
     @echo ""
+
+# Download Rijksmuseum data (pass arguments after --)
+download *ARGS:
+    @echo ""
+    @printf "\033[0;34m=== Downloading Rijksmuseum Data ===\033[0m\n"
+    @uv run python downloader/download_data.py {{ ARGS }}
+    @echo ""
+
+# Show download configuration and available options
+download-info:
+    @uv run python downloader/download_data.py --info
+
+# Download test batch (5 objects with images)
+download-test:
+    @echo ""
+    @printf "\033[0;34m=== Test Download (5 objects) ===\033[0m\n"
+    @uv run python downloader/download_data.py --limit 5
+    @echo ""
+
+# Download diverse batch (default: 10 objects per type, configurable in config.yaml)
+download-batch:
+    @echo ""
+    @printf "\033[0;34m=== Downloading diverse batch ===\033[0m\n"
+    @uv run python downloader/download_data.py
+    @echo ""
