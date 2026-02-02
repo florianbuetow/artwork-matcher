@@ -1,8 +1,13 @@
 # Rijksmuseum Data Downloader Configuration
 
+# Output settings
+output:
+  # Download directory (relative to project root)
+  download_dir: "data/downloads"
+
 # Batch download settings
 batch:
-  # Number of objects to download per type in diverse mode
+  # Default number of objects to download per type (used in diverse mode and as default limit)
   per_type: 10
 
 # Object types to download in diverse mode

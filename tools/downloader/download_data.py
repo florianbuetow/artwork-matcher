@@ -10,17 +10,20 @@ Uses the new Linked Art APIs (no API key required):
 
 Features:
     - Downloads both metadata (JSON) and images (JPEG)
-    - Resume capability (saves pageToken between runs)
+    - Resume capability (saves downloaded object IDs and pagination token between runs)
     - Progress tracking with rich output
     - Rate limiting to respect API limits
     - Skips objects without downloadable images
 
 Usage:
-    # Download 10 objects with images
-    uv run python download_data.py --limit 10
+    # Default: diverse mode (download from multiple object types)
+    uv run python download_data.py
 
-    # Force re-download (ignore existing files)
-    uv run python download_data.py --force --limit 10
+    # Download specific type only
+    uv run python download_data.py --type painting --limit 10
+
+    # Force re-download (reset state, but existing image files are still skipped)
+    uv run python download_data.py --force
 
 API Documentation:
     - Search API: https://data.rijksmuseum.nl/docs/search
@@ -63,55 +66,96 @@ console = Console()
 
 
 def load_yaml_config() -> dict[str, Any]:
-    """Load configuration from config.yaml."""
+    """Load configuration from config.yaml.
+
+    Raises:
+        FileNotFoundError: If config.yaml is missing.
+        RuntimeError: If config.yaml is invalid or empty.
+    """
     config_path = Path(__file__).parent / "config.yaml"
-    if config_path.exists():
+    if not config_path.exists():
+        console.print(f"[red]Error: Required config file not found: {config_path}[/red]")
+        raise FileNotFoundError(f"Required config file not found: {config_path}")
+
+    try:
         import yaml
+    except ImportError:
+        console.print("[red]Error: PyYAML not installed. Run: uv sync[/red]")
+        raise RuntimeError("PyYAML not installed")
+
+    try:
         with config_path.open() as f:
-            return yaml.safe_load(f) or {}
-    return {}
+            config = yaml.safe_load(f)
+    except yaml.YAMLError as e:
+        console.print(f"[red]Error: Invalid YAML in config file: {e}[/red]")
+        raise RuntimeError(f"Invalid YAML in config file: {e}") from e
+
+    if not config:
+        console.print(f"[red]Error: Config file is empty: {config_path}[/red]")
+        raise RuntimeError(f"Config file is empty: {config_path}")
+
+    return config
 
 
 @dataclass
 class DownloadConfig:
-    """Configuration for the data downloader."""
+    """Configuration for the data downloader.
+
+    All values must be explicitly provided from config.yaml.
+    No default values are allowed per CLAUDE.md guidelines.
+    """
 
     download_dir: Path
-    rate_limit_delay: float = 0.5
-    chunk_size: int = 8192
-    timeout: float = 30.0
-    max_retries: int = 3
-    retry_delay: float = 5.0
+    rate_limit_delay: float
+    chunk_size: int
+    timeout: float
+    max_retries: int
+    retry_delay: float
     # Diverse mode settings
-    types: list[str] = field(default_factory=list)
-    per_type: int = 10
+    types: list[str]
+    per_type: int
 
 
 def load_config(args: argparse.Namespace) -> DownloadConfig:
-    """Load configuration from CLI args and config.yaml."""
+    """Load configuration from CLI args and config.yaml.
+
+    All configuration values must be present in config.yaml.
+    CLI args can override specific values.
+
+    Raises:
+        KeyError: If required config sections or keys are missing.
+    """
     yaml_config = load_yaml_config()
 
+    # Validate required sections exist (fail fast)
+    required_sections = ["rate_limit", "request", "batch", "output"]
+    for section in required_sections:
+        if section not in yaml_config:
+            console.print(f"[red]Error: Missing required config section: {section}[/red]")
+            raise KeyError(f"Missing required config section: {section}")
+
+    rate_limit = yaml_config["rate_limit"]
+    request = yaml_config["request"]
+    batch = yaml_config["batch"]
+    output = yaml_config["output"]
+
+    # CLI args override config.yaml
     if args.download_dir:
         download_dir = Path(args.download_dir)
     else:
-        # Default to project root data/downloads (two levels up from this script)
+        # Get from config.yaml, resolve relative to project root
         project_root = Path(__file__).parent.parent.parent
-        download_dir = project_root / "data" / "downloads"
-
-    # Get settings from yaml with defaults
-    rate_limit = yaml_config.get("rate_limit", {})
-    request = yaml_config.get("request", {})
-    batch = yaml_config.get("batch", {})
+        download_dir = project_root / output["download_dir"]
 
     return DownloadConfig(
         download_dir=download_dir,
-        rate_limit_delay=rate_limit.get("delay", 0.5),
-        chunk_size=request.get("chunk_size", 8192),
-        timeout=request.get("timeout", 30.0),
-        max_retries=rate_limit.get("max_retries", 3),
-        retry_delay=rate_limit.get("retry_delay", 5.0),
-        types=yaml_config.get("types", []),
-        per_type=batch.get("per_type", 10),
+        rate_limit_delay=rate_limit["delay"],
+        chunk_size=request["chunk_size"],
+        timeout=request["timeout"],
+        max_retries=rate_limit["max_retries"],
+        retry_delay=rate_limit["retry_delay"],
+        types=yaml_config["types"],
+        per_type=batch["per_type"],
     )
 
 
@@ -173,17 +217,53 @@ class RijksmuseumDownloader:
         return self.config.download_dir / ".download_state.json"
 
     def load_state(self) -> dict[str, Any]:
+        """Load download state from file.
+
+        Handles corrupted state files gracefully by backing up and starting fresh.
+        """
         state_path = self.get_state_path()
-        if state_path.exists():
+        if not state_path.exists():
+            return {"downloaded_ids": [], "next_page_token": None}
+
+        try:
             with state_path.open() as f:
-                return json.load(f)
-        return {"downloaded_ids": [], "next_page_token": None}
+                state = json.load(f)
+                if not isinstance(state, dict):
+                    raise ValueError("State file must contain a JSON object")
+                return state
+        except (json.JSONDecodeError, ValueError) as e:
+            console.print(f"[yellow]Warning: Corrupted state file ({e}), starting fresh[/yellow]")
+            backup_path = state_path.with_suffix(".json.bak")
+            console.print(f"[yellow]Backup saved to {backup_path}[/yellow]")
+            state_path.rename(backup_path)
+            return {"downloaded_ids": [], "next_page_token": None}
+        except OSError as e:
+            console.print(f"[yellow]Warning: Cannot read state file ({e}), starting fresh[/yellow]")
+            return {"downloaded_ids": [], "next_page_token": None}
 
     def save_state(self, state: dict[str, Any]) -> None:
+        """Save download state to file.
+
+        Uses atomic write (temp file + rename) to prevent corruption.
+        Warns but continues on write failures.
+        """
         state_path = self.get_state_path()
+        temp_path = state_path.with_suffix(".json.tmp")
         state["updated_at"] = datetime.now().isoformat()
-        with state_path.open("w") as f:
-            json.dump(state, f, indent=2)
+
+        try:
+            with temp_path.open("w") as f:
+                json.dump(state, f, indent=2)
+            temp_path.rename(state_path)
+        except OSError as e:
+            console.print(f"[red]Warning: Failed to save state: {e}[/red]")
+            console.print("[red]Progress may be lost if interrupted[/red]")
+            # Clean up temp file if it exists
+            try:
+                if temp_path.exists():
+                    temp_path.unlink()
+            except OSError:
+                pass
 
     def _make_request(self, url: str, params: dict[str, Any] | None = None) -> dict[str, Any] | None:
         """Make HTTP request with retries."""
@@ -481,8 +561,21 @@ class RijksmuseumDownloader:
 
                     # Save metadata only if image downloaded successfully
                     metadata_path = self.config.download_dir / "metadata" / f"{file_id}.json"
-                    with metadata_path.open("w") as f:
-                        json.dump(obj_data, f, indent=2, ensure_ascii=False)
+                    try:
+                        with metadata_path.open("w") as f:
+                            json.dump(obj_data, f, indent=2, ensure_ascii=False)
+                    except OSError as e:
+                        console.print(f"[red]Failed to save metadata for {file_id}: {e}[/red]")
+                        # Clean up image since metadata failed (avoid orphaned images)
+                        try:
+                            if image_path.exists():
+                                image_path.unlink()
+                        except OSError:
+                            pass
+                        self.stats.failed += 1
+                        new_downloads += 1
+                        progress.update(task, completed=new_downloads)
+                        continue
 
                     self.stats.downloaded_objects += 1
                     downloaded_ids.add(file_id)
@@ -609,8 +702,20 @@ class RijksmuseumDownloader:
                     continue
 
                 metadata_path = self.config.download_dir / "metadata" / f"{file_id}.json"
-                with metadata_path.open("w") as f:
-                    json.dump(obj_data, f, indent=2, ensure_ascii=False)
+                try:
+                    with metadata_path.open("w") as f:
+                        json.dump(obj_data, f, indent=2, ensure_ascii=False)
+                except OSError as e:
+                    console.print(f"[red]Failed to save metadata for {file_id}: {e}[/red]")
+                    # Clean up image since metadata failed (avoid orphaned images)
+                    try:
+                        if image_path.exists():
+                            image_path.unlink()
+                    except OSError:
+                        pass
+                    stats["failed"] += 1
+                    new_downloads += 1
+                    continue
 
                 stats["downloaded"] += 1
                 downloaded_ids.add(file_id)

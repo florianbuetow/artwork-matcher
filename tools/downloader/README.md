@@ -10,12 +10,12 @@ Downloads collection metadata and images from the Rijksmuseum APIs for the artwo
 # 1. Initialize the environment
 just init
 
-# 2. Download some objects
-just download --limit 10
+# 2. Download some objects (default: diverse mode from multiple types)
+just download
 
-# 3. Check the output
-ls data/downloads/images/
-ls data/downloads/metadata/
+# 3. Check the output (from project root)
+ls ../data/downloads/images/
+ls ../data/downloads/metadata/
 ```
 
 ## Usage
@@ -23,11 +23,14 @@ ls data/downloads/metadata/
 ```bash
 # From the tools/ directory:
 
-# Download 10 objects with images
-just download --limit 10
+# Default: diverse download (10 objects from each configured type)
+just download
 
-# Force re-download (ignore existing files)
-just download --force --limit 10
+# Download specific type only
+just download --type painting --limit 10
+
+# Force re-download (reset state, existing image files still skipped)
+just download --force
 
 # Custom download directory
 just download --download-dir /path/to/data --limit 100
