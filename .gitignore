@@ -210,6 +210,7 @@ reports/
 .copier-answers.yml
 
 # Guard
+.guardfile
 **/.guardfile
 
 # === Microservices ===
