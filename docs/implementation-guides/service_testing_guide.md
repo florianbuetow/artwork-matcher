@@ -77,11 +77,31 @@ services/<service_name>/
 
 ### Pytest Marker
 
+**Every test class in `tests/unit/` must have the `@pytest.mark.unit` marker.** This enables `just test-unit` and `just ci` to filter correctly.
+
 ```python
+import pytest
+
 @pytest.mark.unit
-class TestHealthRouter:
-    ...
+class TestHealthEndpoint:
+    """Tests for GET /health endpoint."""
+
+    def test_health_returns_healthy(self, client: TestClient) -> None:
+        """Health endpoint returns healthy status."""
+        response = client.get("/health")
+        assert response.status_code == 200
+
+@pytest.mark.unit
+class TestInfoEndpoint:
+    """Tests for GET /info endpoint."""
+
+    def test_info_returns_version(self, client: TestClient) -> None:
+        """Info endpoint returns service version."""
+        response = client.get("/info")
+        assert "version" in response.json()
 ```
+
+Without markers, `just test-unit` will collect 0 tests and CI will not run unit tests.
 
 **Reference:** [`services/embeddings/tests/unit/`](../../services/embeddings/tests/unit/)
 
@@ -107,10 +127,17 @@ class TestHealthRouter:
 
 ### Pytest Marker
 
+**Every test class in `tests/integration/` must have the `@pytest.mark.integration` marker.**
+
 ```python
+import pytest
+
 @pytest.mark.integration
 class TestEmbedEndpoint:
-    ...
+    """Integration tests for /embed endpoint."""
+
+    def test_embed_returns_correct_dimension(self, client: TestClient) -> None:
+        ...
 ```
 
 **Reference:** [`services/embeddings/tests/integration/`](../../services/embeddings/tests/integration/)
@@ -136,11 +163,18 @@ class TestEmbedEndpoint:
 
 ### Pytest Markers
 
+**Every test class in `tests/performance/` must have both `@pytest.mark.slow` and `@pytest.mark.performance` markers.**
+
 ```python
+import pytest
+
 @pytest.mark.slow
 @pytest.mark.performance
 class TestThroughput:
-    ...
+    """Throughput benchmarks for the service."""
+
+    def test_sequential_throughput(self, client: TestClient) -> None:
+        ...
 ```
 
 **Reference:** [`services/embeddings/tests/performance/`](../../services/embeddings/tests/performance/)
