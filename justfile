@@ -208,6 +208,14 @@ format-all:
 
 # === Data Pipeline ===
 
+# Download batch of 500 objects from Rijksmuseum (incremental, resumes from last run)
+download-batch:
+    cd tools && just download-batch
+
+# Download Rijksmuseum data with custom options (e.g., just download --limit 100)
+download *ARGS:
+    cd tools && just download {{ ARGS }}
+
 # Build the FAISS index from object images
 build-index:
     cd tools && just build-index
