@@ -7,15 +7,22 @@ These tests verify end-to-end behavior without mocks.
 
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
 from typing import TYPE_CHECKING
 
-import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
 from search_service.app import create_app
 from search_service.config import clear_settings_cache
 from search_service.core.state import reset_app_state
+
+# Re-export factory functions for backward compatibility
+from tests.factories import create_normalized_embedding, create_similar_embedding
+
+# Make factory functions available to other test modules
+__all__ = ["create_normalized_embedding", "create_similar_embedding"]
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -52,45 +59,13 @@ def client(integration_client: TestClient) -> Iterator[TestClient]:
     yield integration_client
 
 
-def create_normalized_embedding(dimension: int, seed: int | None = None) -> list[float]:
+@pytest.fixture
+def temp_index_dir() -> Iterator[Path]:
     """
-    Create a normalized random embedding.
+    Create a temporary directory for save/load tests.
 
-    For inner product search, normalized vectors ensure similarity
-    scores are in the range [-1, 1] (cosine similarity).
-
-    Args:
-        dimension: Vector dimension
-        seed: Random seed for reproducibility
-
-    Returns:
-        L2-normalized embedding as a list of floats
+    Yields the path to the temporary directory, which is
+    automatically cleaned up after the test.
     """
-    if seed is not None:
-        np.random.seed(seed)
-    arr = np.random.randn(dimension).astype(np.float32)
-    arr = arr / np.linalg.norm(arr)
-    return arr.tolist()
-
-
-def create_similar_embedding(
-    base: list[float], noise_scale: float = 0.1, seed: int | None = None
-) -> list[float]:
-    """
-    Create an embedding similar to the base with added noise.
-
-    Args:
-        base: Base embedding to modify
-        noise_scale: Scale of noise to add (smaller = more similar)
-        seed: Random seed for reproducibility
-
-    Returns:
-        L2-normalized embedding similar to base
-    """
-    if seed is not None:
-        np.random.seed(seed)
-    arr = np.array(base, dtype=np.float32)
-    noise = np.random.randn(len(base)).astype(np.float32) * noise_scale
-    arr = arr + noise
-    arr = arr / np.linalg.norm(arr)
-    return arr.tolist()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        yield Path(tmpdir)

@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from tests.integration.conftest import create_normalized_embedding, create_similar_embedding
+from tests.factories import create_normalized_embedding, create_similar_embedding
 
 if TYPE_CHECKING:
     from fastapi.testclient import TestClient
