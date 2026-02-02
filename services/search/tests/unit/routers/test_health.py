@@ -12,11 +12,12 @@ from fastapi.testclient import TestClient
 @pytest.fixture
 def client(mock_settings: MagicMock, mock_app_state: MagicMock) -> TestClient:
     """Create test client with mocked dependencies."""
-    # Patch get_settings to avoid loading real config
+    # Patch get_settings and get_app_state in all modules where they're used
     with (
         patch("search_service.config.get_settings", return_value=mock_settings),
         patch("search_service.core.state.get_app_state", return_value=mock_app_state),
         patch("search_service.core.lifespan.get_settings", return_value=mock_settings),
+        patch("search_service.routers.health.get_app_state", return_value=mock_app_state),
     ):
         from search_service.app import create_app
 

@@ -15,6 +15,7 @@ def client(mock_settings: MagicMock, mock_app_state: MagicMock) -> TestClient:
         patch("search_service.config.get_settings", return_value=mock_settings),
         patch("search_service.core.state.get_app_state", return_value=mock_app_state),
         patch("search_service.core.lifespan.get_settings", return_value=mock_settings),
+        patch("search_service.routers.info.get_app_state", return_value=mock_app_state),
     ):
         from search_service.app import create_app
 
