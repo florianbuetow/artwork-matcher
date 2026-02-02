@@ -24,6 +24,7 @@ def client(mock_settings: MagicMock, mock_app_state: MagicMock) -> TestClient:
         return TestClient(app, raise_server_exceptions=False)
 
 
+@pytest.mark.unit
 class TestHealthEndpoint:
     """Tests for GET /health endpoint."""
 

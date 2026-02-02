@@ -112,6 +112,7 @@ def client(
         yield TestClient(app, raise_server_exceptions=False)
 
 
+@pytest.mark.unit
 class TestSearchEndpoint:
     """Tests for POST /search endpoint."""
 

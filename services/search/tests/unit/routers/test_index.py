@@ -108,6 +108,7 @@ def client_no_index(
         yield TestClient(app, raise_server_exceptions=False)
 
 
+@pytest.mark.unit
 class TestAddEndpoint:
     """Tests for POST /add endpoint."""
 
@@ -172,6 +173,7 @@ class TestAddEndpoint:
         assert data["error"] == "index_not_loaded"
 
 
+@pytest.mark.unit
 class TestSaveEndpoint:
     """Tests for POST /index/save endpoint."""
 
@@ -205,6 +207,7 @@ class TestSaveEndpoint:
         assert data["error"] == "index_not_loaded"
 
 
+@pytest.mark.unit
 class TestLoadEndpoint:
     """Tests for POST /index/load endpoint."""
 
@@ -227,6 +230,7 @@ class TestLoadEndpoint:
         assert data["dimension"] == 768
 
 
+@pytest.mark.unit
 class TestClearEndpoint:
     """Tests for DELETE /index endpoint."""
 

@@ -27,6 +27,7 @@ def reset_settings() -> None:
     clear_settings_cache()
 
 
+@pytest.mark.unit
 class TestLoadYamlConfig:
     """Tests for load_yaml_config function."""
 
@@ -82,6 +83,7 @@ logging:
             load_yaml_config(empty_file)
 
 
+@pytest.mark.unit
 class TestSettings:
     """Tests for Settings validation."""
 
@@ -159,6 +161,7 @@ class TestSettings:
         assert "extra" in str(exc_info.value).lower()
 
 
+@pytest.mark.unit
 class TestSensitiveKeyDetection:
     """Tests for sensitive key detection and redaction."""
 

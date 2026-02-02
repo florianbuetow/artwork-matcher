@@ -157,7 +157,7 @@ Factories provide reusable functions for creating test data. Keep them in `tests
 
 ## Justfile Recipes
 
-Every service justfile should include these testing recipes:
+Every service justfile should include these testing and status recipes:
 
 ```makefile
 # Run all tests
@@ -185,7 +185,36 @@ ci:
 ci-all:
     just ci
     just test-integration
+
+# Check health status of this service
+status:
+    # Calls /health and /info endpoints
+    # Reports: status, version, service-specific info
 ```
+
+### Status Target
+
+The `status` target provides a quick health check for a running service:
+
+```bash
+$ just status
+
+=== Search Service Status ===
+
+✓ Search (port 8002) - healthy
+  Version: 0.1.0
+  Index count: 20
+  Embedding dimension: 768
+```
+
+Each service should customize the status output to show relevant service-specific information:
+
+| Service | Additional Info |
+|---------|-----------------|
+| Embeddings | Model name, embedding dimension |
+| Search | Index count, embedding dimension |
+| Geometric | Feature detector type |
+| Gateway | Backend service statuses |
 
 **Reference:** [`services/embeddings/justfile`](../../services/embeddings/justfile)
 
@@ -237,6 +266,7 @@ When implementing tests for a new service:
 ### Justfile
 - [ ] `test-unit`, `test-integration`, `test-performance`
 - [ ] `ci-all` recipe
+- [ ] `status` recipe (service health check)
 
 ### Pytest
 - [ ] Markers on all test classes

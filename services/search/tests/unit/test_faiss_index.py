@@ -25,6 +25,7 @@ def create_normalized_embedding(dimension: int) -> list[float]:
     return arr.tolist()
 
 
+@pytest.mark.unit
 class TestFAISSIndexInit:
     """Tests for FAISSIndex initialization."""
 
@@ -45,6 +46,7 @@ class TestFAISSIndexInit:
             FAISSIndex(dimension=-1)
 
 
+@pytest.mark.unit
 class TestFAISSIndexAdd:
     """Tests for adding embeddings to the index."""
 
@@ -108,6 +110,7 @@ class TestFAISSIndexAdd:
             )
 
 
+@pytest.mark.unit
 class TestFAISSIndexSearch:
     """Tests for searching the index."""
 
@@ -191,6 +194,7 @@ class TestFAISSIndexSearch:
             index.search(embedding=wrong_query, k=5, threshold=0.0)
 
 
+@pytest.mark.unit
 class TestFAISSIndexClear:
     """Tests for clearing the index."""
 
@@ -215,6 +219,7 @@ class TestFAISSIndexClear:
         assert index.is_empty is True
 
 
+@pytest.mark.unit
 class TestFAISSIndexPersistence:
     """Tests for saving and loading the index."""
 
