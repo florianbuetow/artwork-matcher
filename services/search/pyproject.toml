@@ -98,7 +98,12 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 asyncio_mode = "auto"
 addopts = "-v --tb=short"
-markers = ["unit: Unit tests", "integration: Integration tests"]
+markers = [
+    "unit: Unit tests (fast, isolated, no external dependencies)",
+    "integration: Integration tests (require running services)",
+    "slow: Tests that take more than 1 second",
+    "performance: Performance benchmark tests (slow)",
+]
 
 # === Coverage ===
 [tool.coverage.run]

@@ -203,8 +203,9 @@ __marimo__/
 .AppleDouble
 .LSOverride
 
-# Reports
-reports/
+# Reports (except performance reports which are tracked)
+reports/*
+!reports/performance/
 
 # Copier answers file
 .copier-answers.yml
