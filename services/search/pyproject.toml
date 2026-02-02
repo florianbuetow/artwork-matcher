@@ -9,7 +9,6 @@ dependencies = [
     "faiss-cpu>=1.9.0",
     "numpy>=2.0.0",
     "pydantic>=2.10.0",
-    "pydantic-settings>=2.7.0",
     "pyyaml>=6.0.0",
 ]
 
@@ -28,6 +27,7 @@ dev = [
     "semgrep>=1.99.0",
     "pip-audit>=2.7.0",
     "pygount>=1.8.0",
+    "types-PyYAML>=6.0.0",
 ]
 
 [build-system]
@@ -47,7 +47,12 @@ src = ["src", "tests"]
 select = [
     "E", "W", "F", "I", "B", "C4", "UP", "ARG", "SIM", "TCH", "PTH", "ERA", "PL", "RUF",
 ]
-ignore = ["PLR0913", "PLR2004"]
+# SIM401 conflicts with semgrep no-dict-get-with-default rule
+# PLR0912 - load() has necessary validation branches
+ignore = ["PLR0913", "PLR2004", "SIM401", "PLR0912"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["PLC0415"]  # Allow imports inside patch contexts in tests
 
 [tool.ruff.lint.isort]
 known-first-party = ["search_service"]
@@ -77,6 +82,10 @@ files = ["src"]
 [[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "faiss"
+ignore_missing_imports = true
 
 # === Bandit ===
 [tool.bandit]
@@ -108,3 +117,22 @@ show_missing = true
 # === Deptry ===
 [tool.deptry]
 extend_exclude = [".venv", "tests"]
+
+[tool.deptry.per_rule_ignores]
+# Dev dependencies are tools, not imported in code
+DEP002 = [
+    "pytest",
+    "pytest-cov",
+    "pytest-asyncio",
+    "httpx",
+    "ruff",
+    "mypy",
+    "pyright",
+    "bandit",
+    "deptry",
+    "codespell",
+    "semgrep",
+    "pip-audit",
+    "pygount",
+    "types-PyYAML",
+]

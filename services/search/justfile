@@ -47,7 +47,7 @@ destroy:
 run:
     @echo ""
     @printf "\033[0;34m=== Running Search Service Locally on port 8002 ===\033[0m\n"
-    @uv run uvicorn search_service.app:app --reload --host 0.0.0.0 --port 8002
+    @uv run uvicorn search_service.app:create_app --factory --reload --host 0.0.0.0 --port 8002
 
 # Stop the locally running service
 kill:
@@ -81,6 +81,44 @@ kill:
         printf "Service is not running\n"
     fi
     printf "\n"
+
+# === Docker Commands ===
+
+# Run service in Docker (production mode, detached)
+docker-up:
+    @echo ""
+    @printf "\033[0;34m=== Starting Search Service in Docker ===\033[0m\n"
+    @cd ../.. && docker compose up -d search
+    @echo ""
+    @printf "\033[0;32m✓ Service running at http://localhost:8002\033[0m\n"
+    @echo "  View logs: just docker-logs"
+    @echo ""
+
+# Run service in Docker (development mode with hot reload)
+docker-up-dev:
+    @echo ""
+    @printf "\033[0;34m=== Starting Search Service in Docker (Dev Mode) ===\033[0m\n"
+    @cd ../.. && docker compose -f docker-compose.yml -f docker-compose.dev.yml up search
+
+# Stop service in Docker
+docker-down:
+    @echo ""
+    @printf "\033[0;34m=== Stopping Search Service ===\033[0m\n"
+    @cd ../.. && docker compose stop search
+    @printf "\033[0;32m✓ Service stopped\033[0m\n"
+    @echo ""
+
+# View Docker logs for this service
+docker-logs:
+    @cd ../.. && docker compose logs -f search
+
+# Build Docker image for this service
+docker-build:
+    @echo ""
+    @printf "\033[0;34m=== Building Search Docker Image ===\033[0m\n"
+    @cd ../.. && docker compose build search
+    @printf "\033[0;32m✓ Image built\033[0m\n"
+    @echo ""
 
 # === Code Quality ===
 
