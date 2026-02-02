@@ -22,10 +22,12 @@ class AppState:
     Attributes:
         start_time: When the application started (UTC)
         faiss_index: Loaded FAISS index wrapper instance
+        index_load_error: Error message if index auto-load failed at startup
     """
 
     start_time: datetime = field(default_factory=lambda: datetime.now(UTC))
     faiss_index: FAISSIndex | None = None
+    index_load_error: str | None = None
 
     @property
     def uptime_seconds(self) -> float:

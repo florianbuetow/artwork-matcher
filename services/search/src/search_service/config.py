@@ -44,6 +44,8 @@ class IndexConfig(BaseModel):
     path: str
     metadata_path: str
     auto_load: bool
+    allowed_path_base: str | None = None
+    """Base directory for custom save/load paths. Defaults to parent of index path if not set."""
 
 
 class SearchConfig(BaseModel):

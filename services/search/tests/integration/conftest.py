@@ -15,7 +15,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from search_service.app import create_app
-from search_service.config import clear_settings_cache
+from search_service.config import clear_settings_cache, get_settings
 from search_service.core.state import reset_app_state
 
 # Re-export factory functions for backward compatibility
@@ -64,8 +64,24 @@ def temp_index_dir() -> Iterator[Path]:
     """
     Create a temporary directory for save/load tests.
 
+    Creates a temp directory inside ./data/ relative to the service
+    directory and patches the settings to allow save/load to this
+    directory (path traversal protection).
+
     Yields the path to the temporary directory, which is
     automatically cleaned up after the test.
     """
-    with tempfile.TemporaryDirectory() as tmpdir:
-        yield Path(tmpdir)
+    # Create temp dir inside the local data directory (relative to service root)
+    service_root = Path(__file__).parent.parent.parent  # tests/integration -> tests -> service root
+    base_dir = service_root / "data"
+    base_dir.mkdir(parents=True, exist_ok=True)
+
+    with tempfile.TemporaryDirectory(dir=base_dir) as tmpdir:
+        # Patch settings to allow this directory for save/load operations
+        settings = get_settings()
+        original_allowed_path_base = settings.index.allowed_path_base
+        settings.index.allowed_path_base = str(base_dir)
+        try:
+            yield Path(tmpdir)
+        finally:
+            settings.index.allowed_path_base = original_allowed_path_base

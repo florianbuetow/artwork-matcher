@@ -34,6 +34,44 @@ from search_service.services.faiss_index import (
 router = APIRouter()
 
 
+def validate_index_path(user_path: str, allowed_base: Path) -> Path:
+    """
+    Validate that a user-provided path is within the allowed directory.
+
+    Prevents path traversal attacks by ensuring the resolved path
+    is a child of the allowed base directory.
+
+    Args:
+        user_path: The path provided by the user
+        allowed_base: The base directory that paths must be within
+
+    Returns:
+        The validated, resolved path
+
+    Raises:
+        ServiceError: If the path is outside the allowed directory
+    """
+    # Resolve both paths to eliminate .. and symlinks
+    resolved_path = Path(user_path).resolve()
+    allowed_resolved = allowed_base.resolve()
+
+    # Check if the resolved path is within the allowed directory
+    try:
+        resolved_path.relative_to(allowed_resolved)
+    except ValueError as e:
+        raise ServiceError(
+            error="path_not_allowed",
+            message="Path must be within the allowed index directory",
+            status_code=400,
+            details={
+                "allowed_base": str(allowed_resolved),
+                "requested_path": str(resolved_path),
+            },
+        ) from e
+
+    return resolved_path
+
+
 @router.post("/add", response_model=AddResponse, status_code=201)
 async def add_embedding(request: AddRequest) -> AddResponse:
     """
@@ -128,8 +166,15 @@ async def save_index(request: SaveRequest) -> SaveResponse:
         )
 
     # Determine paths
+    # The allowed base directory is configurable, defaults to parent of index path
+    if settings.index.allowed_path_base is not None:
+        allowed_base = Path(settings.index.allowed_path_base)
+    else:
+        allowed_base = Path(settings.index.path).parent
+
     if request.path is not None:
-        index_path = Path(request.path)
+        # Validate custom path is within allowed directory
+        index_path = validate_index_path(request.path, allowed_base)
         metadata_path = index_path.with_suffix(".json")
     else:
         index_path = Path(settings.index.path)
@@ -191,8 +236,15 @@ async def load_index(request: LoadRequest) -> LoadResponse:
         )
 
     # Determine paths
+    # The allowed base directory is configurable, defaults to parent of index path
+    if settings.index.allowed_path_base is not None:
+        allowed_base = Path(settings.index.allowed_path_base)
+    else:
+        allowed_base = Path(settings.index.path).parent
+
     if request.path is not None:
-        index_path = Path(request.path)
+        # Validate custom path is within allowed directory
+        index_path = validate_index_path(request.path, allowed_base)
         metadata_path = index_path.with_suffix(".json")
     else:
         index_path = Path(settings.index.path)

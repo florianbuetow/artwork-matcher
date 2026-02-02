@@ -35,7 +35,7 @@ def create_faiss_index(settings: Settings) -> FAISSIndex:
     return FAISSIndex(dimension=settings.faiss.embedding_dimension)
 
 
-def try_load_index(faiss_index: FAISSIndex, settings: Settings) -> bool:
+def try_load_index(faiss_index: FAISSIndex, settings: Settings) -> tuple[bool, str | None]:
     """
     Attempt to load index from disk if auto_load is enabled and files exist.
 
@@ -44,13 +44,15 @@ def try_load_index(faiss_index: FAISSIndex, settings: Settings) -> bool:
         settings: Application settings
 
     Returns:
-        True if index was loaded, False otherwise
+        Tuple of (success, error_message). error_message is None on success
+        or if auto_load is disabled or files don't exist. error_message is
+        set only when files exist but loading fails (corruption, etc.).
     """
     logger = get_logger()
 
     if not settings.index.auto_load:
         logger.info("Auto-load disabled, starting with empty index")
-        return False
+        return False, None
 
     index_path = Path(settings.index.path)
     metadata_path = Path(settings.index.metadata_path)
@@ -60,14 +62,14 @@ def try_load_index(faiss_index: FAISSIndex, settings: Settings) -> bool:
             "Index file not found, starting with empty index",
             extra={"index_path": str(index_path)},
         )
-        return False
+        return False, None
 
     if not metadata_path.exists():
         logger.info(
             "Metadata file not found, starting with empty index",
             extra={"metadata_path": str(metadata_path)},
         )
-        return False
+        return False, None
 
     try:
         faiss_index.load(index_path, metadata_path)
@@ -78,16 +80,17 @@ def try_load_index(faiss_index: FAISSIndex, settings: Settings) -> bool:
                 "count": faiss_index.count,
             },
         )
-        return True
+        return True, None
     except IndexLoadError as e:
+        error_message = str(e)
         logger.warning(
             "Failed to load index, starting with empty index",
             extra={
-                "error": str(e),
+                "error": error_message,
                 "index_path": str(index_path),
             },
         )
-        return False
+        return False, error_message
 
 
 @asynccontextmanager
@@ -139,7 +142,8 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     state.faiss_index = faiss_index
 
     # Try to auto-load index
-    try_load_index(faiss_index, settings)
+    _loaded, load_error = try_load_index(faiss_index, settings)
+    state.index_load_error = load_error
 
     logger.info(
         "Service ready to accept requests",

@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
 
 @pytest.fixture
-def client(mock_settings: MagicMock, mock_app_state: MagicMock) -> TestClient:
+def client(mock_settings: MagicMock, mock_app_state: MagicMock) -> Iterator[TestClient]:
     """Create test client with mocked dependencies."""
     # Patch get_settings and get_app_state in all modules where they're used
     with (
@@ -22,7 +26,7 @@ def client(mock_settings: MagicMock, mock_app_state: MagicMock) -> TestClient:
         from search_service.app import create_app
 
         app = create_app()
-        return TestClient(app, raise_server_exceptions=False)
+        yield TestClient(app, raise_server_exceptions=False)
 
 
 @pytest.mark.unit

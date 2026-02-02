@@ -35,6 +35,7 @@ async def get_info() -> InfoResponse:
             embedding_dimension=settings.faiss.embedding_dimension,
             count=state.index_count,
             is_loaded=state.index_loaded,
+            load_error=state.index_load_error,
         ),
         config=ConfigInfo(
             index_path=settings.index.path,

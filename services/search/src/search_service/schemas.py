@@ -19,8 +19,12 @@ class SearchRequest(BaseModel):
     embedding: list[float] = Field(..., min_length=1)
     """Query embedding vector (must match index dimension)."""
 
-    k: int | None = Field(None, ge=1, le=100)
-    """Maximum results to return. Uses default from config if not specified."""
+    k: int | None = Field(None, ge=1, le=10000)
+    """Maximum results to return. Uses default from config if not specified.
+
+    The actual limit is enforced by config.search.max_k (typically 100).
+    The schema limit of 10000 is a safety bound to prevent memory issues.
+    """
 
     threshold: float | None = Field(None, ge=0.0, le=1.0)
     """Minimum similarity score. Uses default from config if not specified."""
@@ -95,6 +99,9 @@ class IndexInfo(BaseModel):
 
     is_loaded: bool
     """Whether index is ready for search."""
+
+    load_error: str | None = None
+    """Error message if index auto-load failed at startup. None if load succeeded."""
 
 
 class ConfigInfo(BaseModel):

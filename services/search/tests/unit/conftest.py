@@ -50,6 +50,7 @@ def mock_settings() -> Iterator[MagicMock]:
         settings.index.path = "/data/index/faiss.index"
         settings.index.metadata_path = "/data/index/metadata.json"
         settings.index.auto_load = True
+        settings.index.allowed_path_base = None  # Defaults to parent of index.path
 
         # Search config
         settings.search.default_k = 5
@@ -83,6 +84,7 @@ def mock_app_state() -> Iterator[MagicMock]:
         state.uptime_formatted = "2m 3s"
         state.index_loaded = True
         state.index_count = 20
+        state.index_load_error = None  # No load error by default
 
         # Mock FAISS index
         faiss_index = MagicMock()

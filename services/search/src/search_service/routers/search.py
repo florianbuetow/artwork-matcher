@@ -61,6 +61,15 @@ async def search(request: SearchRequest) -> SearchResponse:
         request.threshold if request.threshold is not None else settings.search.default_threshold
     )
 
+    # Validate k against configured maximum
+    if k > settings.search.max_k:
+        raise ServiceError(
+            error="k_exceeds_maximum",
+            message=f"Requested k={k} exceeds maximum allowed value of {settings.search.max_k}",
+            status_code=400,
+            details={"max_k": settings.search.max_k, "requested_k": k},
+        )
+
     # Perform search
     start_time = time.perf_counter()
 
