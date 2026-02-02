@@ -6,6 +6,7 @@ Provides standardized error handling and request patterns.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import httpx
@@ -48,8 +49,9 @@ class BackendClient:
         Check backend health.
 
         Returns:
-            Status string ("healthy", "unhealthy", or "unavailable")
+            Status string ("healthy", "unhealthy", "unavailable", or "error")
         """
+        logger = get_logger()
         try:
             response = await self.client.get("/health")
             response.raise_for_status()
@@ -57,8 +59,25 @@ class BackendClient:
             # External API response - fallback is intentional for malformed responses
             status = data.get("status")  # nosemgrep: no-dict-get-with-default
             return str(status) if status is not None else "unknown"
-        except Exception:
+        except httpx.ConnectError:
             return "unavailable"
+        except httpx.TimeoutException:
+            return "unavailable"
+        except httpx.HTTPStatusError as e:
+            # 503 Service Unavailable means the backend is unavailable
+            if e.response.status_code == 503:
+                return "unavailable"
+            return "error"
+        except Exception as e:
+            logger.warning(
+                "Unexpected error in health check",
+                extra={
+                    "backend": self.service_name,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            )
+            return "error"
 
     async def get_info(self) -> dict[str, Any]:
         """
@@ -125,6 +144,8 @@ class BackendClient:
             ) from e
 
         except httpx.HTTPStatusError as e:
+            error_code = "unknown"
+            error_message = str(e)
             try:
                 backend_error = e.response.json()
                 # External API error response - fallback is intentional for malformed responses
@@ -134,9 +155,23 @@ class BackendClient:
                     error_code = "unknown"
                 if error_message is None:
                     error_message = str(e)
-            except Exception:
-                error_code = "unknown"
-                error_message = str(e)
+            except json.JSONDecodeError as parse_err:
+                logger.debug(
+                    "Failed to parse backend error response as JSON",
+                    extra={
+                        "backend": self.service_name,
+                        "status_code": e.response.status_code,
+                        "parse_error": str(parse_err),
+                    },
+                )
+            except Exception as parse_err:
+                logger.debug(
+                    "Unexpected error parsing backend error response",
+                    extra={
+                        "backend": self.service_name,
+                        "error_type": type(parse_err).__name__,
+                    },
+                )
 
             logger.warning(
                 "Backend error",

@@ -6,12 +6,13 @@ Exposes service configuration and backend status.
 
 from __future__ import annotations
 
-import contextlib
-
+import httpx
 from fastapi import APIRouter
 
 from gateway.config import get_settings
+from gateway.core.exceptions import BackendError
 from gateway.core.state import get_app_state
+from gateway.logging import get_logger
 from gateway.schemas import BackendInfo, BackendsInfo, InfoResponse, PipelineInfo
 
 router = APIRouter()
@@ -34,18 +35,40 @@ async def get_info() -> InfoResponse:
     geometric_status = await state.geometric_client.health_check()
 
     # Try to get detailed info from backends
+    logger = get_logger()
     embeddings_info = None
     search_info = None
     geometric_info = None
 
-    with contextlib.suppress(Exception):
+    try:
         embeddings_info = await state.embeddings_client.get_info()
+    except (BackendError, httpx.HTTPError) as e:
+        logger.debug("Could not get embeddings backend info", extra={"error": str(e)})
+    except Exception as e:
+        logger.warning(
+            "Unexpected error getting embeddings backend info",
+            extra={"error": str(e), "error_type": type(e).__name__},
+        )
 
-    with contextlib.suppress(Exception):
+    try:
         search_info = await state.search_client.get_info()
+    except (BackendError, httpx.HTTPError) as e:
+        logger.debug("Could not get search backend info", extra={"error": str(e)})
+    except Exception as e:
+        logger.warning(
+            "Unexpected error getting search backend info",
+            extra={"error": str(e), "error_type": type(e).__name__},
+        )
 
-    with contextlib.suppress(Exception):
+    try:
         geometric_info = await state.geometric_client.get_info()
+    except (BackendError, httpx.HTTPError) as e:
+        logger.debug("Could not get geometric backend info", extra={"error": str(e)})
+    except Exception as e:
+        logger.warning(
+            "Unexpected error getting geometric backend info",
+            extra={"error": str(e), "error_type": type(e).__name__},
+        )
 
     return InfoResponse(
         service=settings.service.name,

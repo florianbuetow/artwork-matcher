@@ -10,6 +10,8 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
+import httpx
+
 from gateway.clients import EmbeddingsClient, GeometricClient, SearchClient
 from gateway.config import get_settings
 from gateway.core.state import init_app_state
@@ -99,10 +101,16 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
                 "geometric": geometric_status,
             },
         )
-    except Exception as e:
+    except httpx.HTTPError as e:
         logger.warning(
             "Backend health check failed during startup",
-            extra={"error": str(e)},
+            extra={"error": str(e), "error_type": type(e).__name__},
+        )
+    except Exception as e:
+        logger.error(
+            "Unexpected error during startup health check",
+            extra={"error": str(e), "error_type": type(e).__name__},
+            exc_info=True,
         )
 
     logger.info("Service ready to accept requests")

@@ -77,8 +77,12 @@ def find_image_path(object_id: str) -> Path | None:
     Returns:
         Path to image file or None if not found
     """
+    # Validate object_id doesn't contain path traversal characters
+    if ".." in object_id or "/" in object_id or "\\" in object_id:
+        return None
+
     settings = get_settings()
-    objects_path = Path(settings.data.objects_path)
+    objects_path = Path(settings.data.objects_path).resolve()
 
     extensions = [".jpg", ".jpeg", ".png", ".webp"]
 
@@ -148,6 +152,7 @@ async def get_object(object_id: str) -> ObjectDetails:
             detail={
                 "error": "not_found",
                 "message": f"Object '{object_id}' not found in database",
+                "details": {},
             },
         )
 
@@ -191,6 +196,7 @@ async def get_object_image(object_id: str) -> FileResponse:
             detail={
                 "error": "not_found",
                 "message": f"Object '{object_id}' not found in database",
+                "details": {},
             },
         )
 
@@ -202,6 +208,7 @@ async def get_object_image(object_id: str) -> FileResponse:
             detail={
                 "error": "image_not_found",
                 "message": f"Image for object '{object_id}' not found",
+                "details": {},
             },
         )
 

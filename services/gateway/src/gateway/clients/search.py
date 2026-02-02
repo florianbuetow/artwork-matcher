@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 from gateway.clients.base import BackendClient
+from gateway.core.exceptions import BackendError
 
 
 class SearchResult:
@@ -71,7 +72,12 @@ class SearchClient(BackendClient):
 
         results = result.get("results")  # nosemgrep: no-dict-get-with-default
         if results is None:
-            return []
+            raise BackendError(
+                error="invalid_response",
+                message="Search service returned response without 'results' field",
+                status_code=502,
+                details={"backend": "search", "response_keys": list(result.keys())},
+            )
         return [SearchResult(r) for r in results]
 
     async def get_index_count(self) -> int:

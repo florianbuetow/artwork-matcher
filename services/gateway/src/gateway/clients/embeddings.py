@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 from gateway.clients.base import BackendClient
+from gateway.core.exceptions import BackendError
 
 
 class EmbeddingsClient(BackendClient):
@@ -35,11 +36,40 @@ class EmbeddingsClient(BackendClient):
             payload["image_id"] = image_id
 
         result = await self._request("POST", "/embed", json=payload)
-        # External API response - handle missing field
+
         embedding = result.get("embedding")  # nosemgrep: no-dict-get-with-default
-        if embedding is None or not isinstance(embedding, list):
-            return []
-        return [float(x) for x in embedding]
+        if embedding is None:
+            raise BackendError(
+                error="invalid_response",
+                message="Embeddings service returned response without 'embedding' field",
+                status_code=502,
+                details={"backend": "embeddings", "response_keys": list(result.keys())},
+            )
+        if not isinstance(embedding, list):
+            embed_type = type(embedding).__name__
+            raise BackendError(
+                error="invalid_response",
+                message=f"Embeddings service returned non-list embedding: {embed_type}",
+                status_code=502,
+                details={"backend": "embeddings", "embedding_type": embed_type},
+            )
+        if len(embedding) == 0:
+            raise BackendError(
+                error="empty_embedding",
+                message="Embeddings service returned empty embedding vector",
+                status_code=502,
+                details={"backend": "embeddings"},
+            )
+
+        try:
+            return [float(x) for x in embedding]
+        except (ValueError, TypeError) as e:
+            raise BackendError(
+                error="invalid_response",
+                message=f"Embeddings service returned non-numeric values in embedding: {e}",
+                status_code=502,
+                details={"backend": "embeddings"},
+            ) from e
 
     async def get_embedding_dimension(self) -> int:
         """

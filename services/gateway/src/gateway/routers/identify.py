@@ -13,9 +13,11 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING
 
+import httpx
 from fastapi import APIRouter
 
 from gateway.config import get_settings
+from gateway.core.exceptions import BackendError
 from gateway.core.state import get_app_state
 from gateway.logging import get_logger
 from gateway.schemas import (
@@ -127,7 +129,7 @@ async def identify_artwork(request: IdentifyRequest) -> IdentifyResponse:
         },
     )
 
-    # Step 1: Extract embedding
+    # Step 1: Extract embedding (embed() raises BackendError on empty/invalid)
     t0 = time.perf_counter()
     embedding = await state.embeddings_client.embed(request.image)
     timing["embedding_ms"] = (time.perf_counter() - t0) * 1000
@@ -189,10 +191,17 @@ async def identify_artwork(request: IdentifyRequest) -> IdentifyResponse:
             else:
                 logger.warning("Geometric service unavailable, using embedding only")
 
-        except Exception as e:
+        except (BackendError, httpx.HTTPError) as e:
             logger.warning(
-                "Geometric verification failed",
-                extra={"error": str(e)},
+                "Geometric verification unavailable",
+                extra={"error": str(e), "error_type": type(e).__name__},
+            )
+        except Exception as e:
+            # Unexpected error - log at ERROR level but allow graceful degradation
+            logger.error(
+                "Unexpected error during geometric verification",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
             )
 
         timing["geometric_ms"] = (time.perf_counter() - t0) * 1000

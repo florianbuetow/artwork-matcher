@@ -169,10 +169,6 @@ def get_settings() -> Settings:
     config_path = get_config_path()
     yaml_config = load_yaml_config(config_path)
 
-    # Add service identity if not present in YAML
-    if "service" not in yaml_config:
-        yaml_config["service"] = {"name": "gateway", "version": "0.1.0"}
-
     try:
         return Settings(**yaml_config)
     except ValidationError as e:
