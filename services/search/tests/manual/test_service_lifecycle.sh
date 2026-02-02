@@ -13,7 +13,7 @@
 # Prerequisites:
 #   - Docker must be running
 #   - No services should be running on port 8002
-#   - Run from the repository root directory
+#   - Run from the service directory (services/search/)
 #
 
 set -e  # Exit on first error
@@ -67,8 +67,9 @@ check_service_not_responding() {
 
 print_header "Search Service Lifecycle Test"
 
-if [ ! -f "justfile" ]; then
-    fail "Directory check" "Must run from repository root (justfile not found)"
+# Ensure we're in the service directory
+if [ ! -d "src/search_service" ]; then
+    fail "Directory check" "Must run from service directory (services/search/)"
 fi
 
 # -----------------------------------------------------------------------------
@@ -87,10 +88,8 @@ fi
 # -----------------------------------------------------------------------------
 print_header "Step 2: Start app locally"
 
-cd services/search
 just run > /dev/null 2>&1 &
 LOCAL_PID=$!
-cd ../..
 
 printf "  Started local service (background PID: %s)\n" "$LOCAL_PID"
 sleep 5
@@ -118,9 +117,7 @@ fi
 # -----------------------------------------------------------------------------
 print_header "Step 4: Kill the app"
 
-cd services/search
 kill_output=$(just kill 2>&1)
-cd ../..
 
 if echo "$kill_output" | grep -q "Service stopped"; then
     pass "just kill reports service stopped"
@@ -146,9 +143,7 @@ fi
 # -----------------------------------------------------------------------------
 print_header "Step 6: Start Docker container"
 
-cd services/search
 docker_up_output=$(just docker-up 2>&1)
-cd ../..
 
 if echo "$docker_up_output" | grep -q "Service running"; then
     pass "Docker container started"
@@ -181,9 +176,7 @@ fi
 # -----------------------------------------------------------------------------
 print_header "Step 8: Stop Docker container"
 
-cd services/search
 docker_down_output=$(just docker-down 2>&1)
-cd ../..
 
 if echo "$docker_down_output" | grep -q "Service stopped"; then
     pass "Docker container stopped"
