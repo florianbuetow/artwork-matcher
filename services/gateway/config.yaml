@@ -2,6 +2,10 @@
 # Environment variable overrides use prefix: GATEWAY__
 # Example: GATEWAY__BACKENDS__EMBEDDINGS_URL=http://embeddings:8001
 
+service:
+  name: "gateway"
+  version: "0.1.0"
+
 backends:
   embeddings_url: "http://localhost:8001"
   search_url: "http://localhost:8002"

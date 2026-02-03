@@ -26,6 +26,10 @@ dev = [
     "semgrep>=1.99.0",
     "pip-audit>=2.7.0",
     "pygount>=1.8.0",
+    "types-PyYAML>=6.0.0",
+    "pillow>=10.0.0",
+    "respx>=0.21.0",
+    "numpy>=1.26.0",
 ]
 
 [build-system]
@@ -45,7 +49,7 @@ src = ["src", "tests"]
 select = [
     "E", "W", "F", "I", "B", "C4", "UP", "ARG", "SIM", "TCH", "PTH", "ERA", "PL", "RUF",
 ]
-ignore = ["PLR0913", "PLR2004"]
+ignore = ["PLR0913", "PLR0915", "PLR2004"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["gateway"]
@@ -87,7 +91,12 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 asyncio_mode = "auto"
 addopts = "-v --tb=short"
-markers = ["unit: Unit tests", "integration: Integration tests"]
+markers = [
+    "unit: Unit tests (fast, isolated with mocks)",
+    "integration: Integration tests (real HTTP calls, mocked backends)",
+    "performance: Performance benchmark tests",
+    "slow: Slow tests (excluded from default run)",
+]
 
 # === Coverage ===
 [tool.coverage.run]
@@ -106,3 +115,24 @@ show_missing = true
 # === Deptry ===
 [tool.deptry]
 extend_exclude = [".venv", "tests"]
+
+[tool.deptry.per_rule_ignores]
+DEP002 = [
+    "pydantic-settings",  # Used via pydantic imports
+    "pytest",             # CLI tool
+    "pytest-cov",         # pytest plugin
+    "pytest-asyncio",     # pytest plugin
+    "ruff",               # CLI tool
+    "mypy",               # CLI tool
+    "pyright",            # CLI tool
+    "bandit",             # CLI tool
+    "deptry",             # CLI tool
+    "codespell",          # CLI tool
+    "semgrep",            # CLI tool
+    "pip-audit",          # CLI tool
+    "pygount",            # CLI tool
+    "types-PyYAML",       # Type stubs
+    "pillow",             # Used in test factories
+    "respx",              # Used in integration tests
+    "numpy",              # Used in performance test generators
+]
