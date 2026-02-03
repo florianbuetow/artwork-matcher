@@ -2,7 +2,17 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+# Install system dependencies for OpenCV headless
+# libglib2.0-0: GLib (required by OpenCV)
+# libgl1: OpenGL (sometimes needed)
+# libxcb1, libx11-6: X11 libraries (needed even for headless in some cases)
+RUN apt-get update && apt-get install -y \
+    curl \
+    libglib2.0-0 \
+    libgl1 \
+    libxcb1 \
+    libx11-6 \
+    && rm -rf /var/lib/apt/lists/*
 RUN pip install uv
 
 COPY pyproject.toml uv.lock ./
