@@ -39,9 +39,8 @@ CONCURRENCY_LEVELS = [2, 4, 8, 16]
 # Image dimension variations for latency tests (expanded like embeddings service)
 DIMENSION_SIZES = [100, 250, 500, 750, 1000, 1500, 2000]
 
-# Report output path (relative to repo root for consistency with other services)
-REPO_ROOT = SERVICE_ROOT.parent.parent
-REPORTS_DIR = REPO_ROOT / "reports" / "perf"
+# Report output path (in service's reports/performance directory)
+REPORTS_DIR = SERVICE_ROOT / "reports" / "performance"
 REPORT_PATH = REPORTS_DIR / "gateway_service_performance.md"
 
 # Backend service URLs (must match config.yaml)
