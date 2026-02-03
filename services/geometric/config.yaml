@@ -2,6 +2,10 @@
 # Environment variable overrides use prefix: GEOMETRIC__
 # Example: GEOMETRIC__ORB__MAX_FEATURES=2000
 
+service:
+  name: geometric
+  version: 0.1.0
+
 orb:
   max_features: 1000
   scale_factor: 1.2
@@ -26,5 +30,5 @@ verification:
 
 server:
   host: "0.0.0.0"
-  port: 8000
+  port: 8003
   log_level: "info"
