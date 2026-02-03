@@ -19,7 +19,7 @@ import pytest
 from .conftest import (
     CONCURRENCY_LEVELS,  # noqa: F401
     DIMENSION_SIZES,
-    FEATURE_COUNT_LEVELS,  # noqa: F401
+    FEATURE_COUNT_LEVELS,
     ITERATIONS_PER_SCENARIO,
     THROUGHPUT_REQUESTS,  # noqa: F401
 )
@@ -77,5 +77,64 @@ class TestDimensionLatency:
         # Print results
         print(f"\n{'=' * 60}")
         print(f"Dimension Test: {size}x{size} ({image_size_kb:.0f} KB)")
+        print(f"{'=' * 60}")
+        print(metrics.summary())
+
+
+@pytest.mark.slow
+@pytest.mark.performance
+class TestFeatureCountLatency:
+    """Test latency across different max_features settings."""
+
+    @pytest.mark.parametrize(
+        "max_features",
+        FEATURE_COUNT_LEVELS,
+        ids=[f"{f}_features" for f in FEATURE_COUNT_LEVELS],
+    )
+    def test_feature_count_latency(
+        self,
+        client: TestClient,
+        pregenerated_images: dict[str, tuple[str, float]],
+        performance_report: PerformanceReport,
+        max_features: int,
+    ) -> None:
+        """
+        Measure extraction latency for different max_features values.
+
+        Args:
+            client: Test client with real application
+            pregenerated_images: Pre-generated test images
+            performance_report: Report collector
+            max_features: Maximum features to extract
+        """
+        image_base64, _ = pregenerated_images["feature_count"]
+
+        metrics = LatencyMetrics()
+        actual_features_sum = 0
+
+        for i in range(ITERATIONS_PER_SCENARIO):
+            start = time.perf_counter()
+            response = client.post(
+                "/extract",
+                json={
+                    "image": image_base64,
+                    "image_id": f"features_{max_features}_iter{i}",
+                    "max_features": max_features,
+                },
+            )
+            elapsed_ms = (time.perf_counter() - start) * 1000
+
+            assert response.status_code == 200, f"Request failed: {response.text}"
+            metrics.add(elapsed_ms)
+            actual_features_sum += response.json()["num_features"]
+
+        avg_features = actual_features_sum / ITERATIONS_PER_SCENARIO
+
+        # Record to report
+        performance_report.add_feature_count_result(max_features, metrics, avg_features)
+
+        # Print results
+        print(f"\n{'=' * 60}")
+        print(f"Feature Count Test: max={max_features}, avg_actual={avg_features:.0f}")
         print(f"{'=' * 60}")
         print(metrics.summary())
