@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import cv2
-import numpy as np
 import pytest
 
 from geometric_service.services.geometric_verifier import RANSACVerifier, calculate_confidence
