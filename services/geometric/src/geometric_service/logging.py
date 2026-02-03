@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -34,9 +34,7 @@ class JSONFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         """Format log record as JSON string."""
         # Timestamp in yyyy-mm-dd hh:mm format
-        timestamp = datetime.fromtimestamp(record.created, tz=timezone.utc).strftime(
-            "%Y-%m-%d %H:%M"
-        )
+        timestamp = datetime.fromtimestamp(record.created, tz=UTC).strftime("%Y-%m-%d %H:%M")
 
         log_data: dict[str, Any] = {
             "timestamp": timestamp,
@@ -52,15 +50,31 @@ class JSONFormatter(logging.Formatter):
         # Include extra fields from record
         # Skip standard LogRecord attributes
         standard_attrs = {
-            "name", "msg", "args", "created", "filename", "funcName",
-            "levelname", "levelno", "lineno", "module", "msecs", "pathname",
-            "process", "processName", "relativeCreated", "stack_info",
-            "exc_info", "exc_text", "thread", "threadName", "taskName", "message",
+            "name",
+            "msg",
+            "args",
+            "created",
+            "filename",
+            "funcName",
+            "levelname",
+            "levelno",
+            "lineno",
+            "module",
+            "msecs",
+            "pathname",
+            "process",
+            "processName",
+            "relativeCreated",
+            "stack_info",
+            "exc_info",
+            "exc_text",
+            "thread",
+            "threadName",
+            "taskName",
+            "message",
         }
 
-        extra = {
-            key: value for key, value in record.__dict__.items() if key not in standard_attrs
-        }
+        extra = {key: value for key, value in record.__dict__.items() if key not in standard_attrs}
 
         if extra:
             log_data["extra"] = extra
@@ -114,14 +128,12 @@ def get_logger(name: str | None = None) -> logging.Logger:
     Returns:
         Logger instance
     """
-    from geometric_service.config import get_settings
+    # Import here to avoid circular dependency (config imports logging)
+    # nosemgrep: config.semgrep.python.no-noqa-for-typing
+    from geometric_service.config import get_settings  # noqa: PLC0415
 
     settings = get_settings()
     base_name = settings.service.name
-
-    if name:
-        full_name = f"{base_name}.{name}"
-    else:
-        full_name = base_name
+    full_name = f"{base_name}.{name}" if name else base_name
 
     return logging.getLogger(full_name)
