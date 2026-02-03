@@ -93,6 +93,10 @@ def create_transformed_image_base64(
     image_bytes = base64.b64decode(base_image_b64)
     image = Image.open(BytesIO(image_bytes))
 
+    # Convert to RGB if grayscale to ensure consistent fillcolor handling
+    if image.mode == "L":
+        image = image.convert("RGB")
+
     if rotation_deg != 0:
         image = image.rotate(rotation_deg, expand=True, fillcolor=(128, 128, 128))
 
