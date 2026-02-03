@@ -254,6 +254,14 @@ class TestBatchMatchRequest:
 
         assert request.query_id == "query_001"
 
+    def test_empty_query_image_raises_error(self) -> None:
+        """BatchMatchRequest rejects empty query_image."""
+        with pytest.raises(ValidationError):
+            BatchMatchRequest(
+                query_image="",
+                references=[ReferenceInput(reference_id="ref_001", reference_image="img1")],
+            )
+
 
 @pytest.mark.unit
 class TestHealthResponse:
@@ -413,6 +421,23 @@ class TestMatchResponse:
         assert response.homography is None
         assert response.query_id is None
         assert response.reference_id is None
+
+    def test_homography_shape_not_validated(self) -> None:
+        """Schema accepts any matrix shape - validation is in business logic."""
+        # Intentionally test with 2x2 instead of 3x3
+        response = MatchResponse(
+            is_match=True,
+            confidence=0.85,
+            inliers=10,
+            total_matches=15,
+            inlier_ratio=0.67,
+            query_features=5,
+            reference_features=5,
+            homography=[[1.0, 0.0], [0.0, 1.0]],  # 2x2 not 3x3
+            processing_time_ms=10.5,
+        )
+        assert response.homography is not None
+        assert len(response.homography) == 2  # Documents that 3x3 not enforced
 
 
 @pytest.mark.unit

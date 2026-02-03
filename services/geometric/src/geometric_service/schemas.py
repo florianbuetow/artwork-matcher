@@ -4,7 +4,7 @@ Pydantic request/response models for the geometric service API.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -128,7 +128,7 @@ class BatchMatchRequest(BaseModel):
 class HealthResponse(BaseModel):
     """Response model for GET /health endpoint."""
 
-    status: str
+    status: Literal["healthy", "degraded", "unhealthy"]
     """Service health status."""
 
     uptime_seconds: float
