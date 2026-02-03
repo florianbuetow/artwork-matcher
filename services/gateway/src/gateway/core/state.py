@@ -8,7 +8,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from gateway.clients import EmbeddingsClient, GeometricClient, SearchClient
 
 
 @dataclass
@@ -18,15 +21,51 @@ class AppState:
 
     Attributes:
         start_time: When the application started (UTC)
-        embeddings_client: HTTP client for embeddings service
-        search_client: HTTP client for search service
-        geometric_client: HTTP client for geometric service
+        _embeddings_client: HTTP client for embeddings service (internal)
+        _search_client: HTTP client for search service (internal)
+        _geometric_client: HTTP client for geometric service (internal)
     """
 
     start_time: datetime = field(default_factory=lambda: datetime.now(UTC))
-    embeddings_client: Any = None  # EmbeddingsClient
-    search_client: Any = None  # SearchClient
-    geometric_client: Any = None  # GeometricClient
+    _embeddings_client: EmbeddingsClient | None = field(default=None, repr=False)
+    _search_client: SearchClient | None = field(default=None, repr=False)
+    _geometric_client: GeometricClient | None = field(default=None, repr=False)
+
+    @property
+    def embeddings_client(self) -> EmbeddingsClient:
+        """Get the embeddings client. Raises RuntimeError if not initialized."""
+        if self._embeddings_client is None:
+            raise RuntimeError("Embeddings client not initialized")
+        return self._embeddings_client
+
+    @embeddings_client.setter
+    def embeddings_client(self, value: EmbeddingsClient) -> None:
+        """Set the embeddings client."""
+        self._embeddings_client = value
+
+    @property
+    def search_client(self) -> SearchClient:
+        """Get the search client. Raises RuntimeError if not initialized."""
+        if self._search_client is None:
+            raise RuntimeError("Search client not initialized")
+        return self._search_client
+
+    @search_client.setter
+    def search_client(self, value: SearchClient) -> None:
+        """Set the search client."""
+        self._search_client = value
+
+    @property
+    def geometric_client(self) -> GeometricClient:
+        """Get the geometric client. Raises RuntimeError if not initialized."""
+        if self._geometric_client is None:
+            raise RuntimeError("Geometric client not initialized")
+        return self._geometric_client
+
+    @geometric_client.setter
+    def geometric_client(self, value: GeometricClient) -> None:
+        """Set the geometric client."""
+        self._geometric_client = value
 
     @property
     def uptime_seconds(self) -> float:

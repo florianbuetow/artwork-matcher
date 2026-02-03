@@ -42,31 +42,25 @@ async def get_info() -> InfoResponse:
 
     try:
         embeddings_info = await state.embeddings_client.get_info()
-    except (BackendError, httpx.HTTPError) as e:
-        logger.debug("Could not get embeddings backend info", extra={"error": str(e)})
-    except Exception as e:
-        logger.warning(
-            "Unexpected error getting embeddings backend info",
+    except (BackendError, httpx.HTTPError, httpx.TimeoutException, httpx.ConnectError) as e:
+        logger.debug(
+            "Could not get embeddings backend info",
             extra={"error": str(e), "error_type": type(e).__name__},
         )
 
     try:
         search_info = await state.search_client.get_info()
-    except (BackendError, httpx.HTTPError) as e:
-        logger.debug("Could not get search backend info", extra={"error": str(e)})
-    except Exception as e:
-        logger.warning(
-            "Unexpected error getting search backend info",
+    except (BackendError, httpx.HTTPError, httpx.TimeoutException, httpx.ConnectError) as e:
+        logger.debug(
+            "Could not get search backend info",
             extra={"error": str(e), "error_type": type(e).__name__},
         )
 
     try:
         geometric_info = await state.geometric_client.get_info()
-    except (BackendError, httpx.HTTPError) as e:
-        logger.debug("Could not get geometric backend info", extra={"error": str(e)})
-    except Exception as e:
-        logger.warning(
-            "Unexpected error getting geometric backend info",
+    except (BackendError, httpx.HTTPError, httpx.TimeoutException, httpx.ConnectError) as e:
+        logger.debug(
+            "Could not get geometric backend info",
             extra={"error": str(e), "error_type": type(e).__name__},
         )
 

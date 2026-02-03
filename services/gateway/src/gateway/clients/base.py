@@ -49,9 +49,8 @@ class BackendClient:
         Check backend health.
 
         Returns:
-            Status string ("healthy", "unhealthy", "unavailable", or "error")
+            Status string ("healthy", "unhealthy", "unavailable", "error", or "unknown")
         """
-        logger = get_logger()
         try:
             response = await self.client.get("/health")
             response.raise_for_status()
@@ -68,15 +67,7 @@ class BackendClient:
             if e.response.status_code == 503:
                 return "unavailable"
             return "error"
-        except Exception as e:
-            logger.warning(
-                "Unexpected error in health check",
-                extra={
-                    "backend": self.service_name,
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                },
-            )
+        except json.JSONDecodeError:
             return "error"
 
     async def get_info(self) -> dict[str, Any]:
@@ -114,6 +105,21 @@ class BackendClient:
             response = await self.client.request(method, path, **kwargs)
             response.raise_for_status()
             return dict(response.json())
+
+        except json.JSONDecodeError as e:
+            logger.warning(
+                "Backend returned invalid JSON",
+                extra={
+                    "backend": self.service_name,
+                    "path": path,
+                },
+            )
+            raise BackendError(
+                error="invalid_response",
+                message=f"{self.service_name} service returned invalid JSON response",
+                status_code=502,
+                details={"backend": self.service_name, "path": path},
+            ) from e
 
         except httpx.TimeoutException as e:
             logger.warning(
@@ -179,7 +185,7 @@ class BackendClient:
                     "backend": self.service_name,
                     "status_code": e.response.status_code,
                     "error": error_code,
-                    "message": error_message,
+                    "backend_message": error_message,
                 },
             )
             raise BackendError(

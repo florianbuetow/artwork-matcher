@@ -190,6 +190,12 @@ class IdentifyResponse(BaseModel):
     debug: DebugInfo | None = None
     """Debug information."""
 
+    geometric_skipped: bool = False
+    """Whether geometric verification was skipped."""
+
+    geometric_skip_reason: str | None = None
+    """Reason for skipping geometric verification."""
+
 
 class ObjectSummary(BaseModel):
     """Summary info for object listing."""

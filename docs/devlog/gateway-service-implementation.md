@@ -218,48 +218,83 @@ Tests split into `tests/unit/`, `tests/integration/`, and `tests/performance/`.
 
 **Fix:** Use `--factory` flag: `uvicorn gateway.app:create_app --factory`
 
-### Test Coverage Below Threshold
-
-**Problem:** Coverage at 73%, threshold is 80%.
-
-**Status:** Known issue. Low coverage in `main.py` (entry point), backend clients (error paths not exercised), and some router edge cases. Integration tests with real backends would improve this.
-
 ### Geometric Verification Warning
 
 **Problem:** Performance tests log warnings about geometric verification being skipped.
 
 **Status:** Expected behavior—geometric verification requires reference images which aren't available in test fixtures. Warning is informational.
 
+### PR Review Fixes (7 Issues)
+
+Following code review, several improvements were made:
+
+**Issue 1: Geometric Verification Skip Explicit**
+
+**Problem:** When geometric verification was skipped, the response didn't indicate why.
+
+**Fix:** Added `geometric_skipped` (bool) and `geometric_skip_reason` (str) fields to `IdentifyResponse`. Reasons: `no_candidates`, `not_implemented`, `service_unavailable`, `backend_error`.
+
+**Issue 2: Broad Exception Catching**
+
+**Problem:** Three locations used `except Exception` which could hide bugs:
+- `identify.py:199-205`
+- `info.py:43-71` (3 occurrences)
+- `base.py:71-80`
+
+**Fix:** Narrowed to specific exceptions: `BackendError`, `httpx.HTTPError`, `httpx.TimeoutException`, `httpx.ConnectError`, `json.JSONDecodeError`.
+
+**Issue 3: AppState Uses Any Types**
+
+**Problem:** `AppState` dataclass had `Any` type annotations for client fields.
+
+**Fix:** Changed to proper typed property accessors using `TYPE_CHECKING` imports. Properties raise `RuntimeError` if accessed before initialization.
+
+**Issues 4-7: Missing Client Unit Tests**
+
+**Problem:** No unit tests for `BackendClient`, `EmbeddingsClient`, `SearchClient`, `GeometricClient`.
+
+**Fix:** Added comprehensive test suite in `tests/unit/clients/`:
+- `test_base.py`: Request handling, timeouts, health checks
+- `test_embeddings.py`: Embedding extraction, validation
+- `test_search.py`: Search results, index count
+- `test_geometric.py`: Match, batch match, result parsing
+
 ---
 
 ## Testing
 
-### Unit Tests (114 tests)
+### Unit Tests
 
 Located in `tests/unit/`. Run with `just test-unit`.
 
 - Router tests (health, info, identify, objects)
 - Configuration loading and validation
 - Schema validation
+- Backend client tests
 - All backend dependencies mocked
 
-| Module | Tests | Purpose |
-|--------|-------|---------|
-| `test_health.py` | 7 | Health endpoint with various backend states |
-| `test_info.py` | 13 | Info endpoint response structure |
-| `test_identify.py` | 11 | Identify pipeline and confidence calculation |
-| `test_objects.py` | 19 | Object listing, details, and images |
-| `test_config.py` | 35 | Config loading, validation, sensitive data |
-| `test_schemas.py` | 29 | Schema validation and serialization |
+| Module | Purpose |
+|--------|---------|
+| `test_health.py` | Health endpoint with various backend states |
+| `test_info.py` | Info endpoint response structure |
+| `test_identify.py` | Identify pipeline and confidence calculation |
+| `test_objects.py` | Object listing, details, and images |
+| `test_config.py` | Config loading, validation, sensitive data |
+| `test_schemas.py` | Schema validation and serialization |
+| `clients/test_base.py` | BackendClient request/response handling |
+| `clients/test_embeddings.py` | EmbeddingsClient embedding extraction |
+| `clients/test_search.py` | SearchClient search and result parsing |
+| `clients/test_geometric.py` | GeometricClient match and batch operations |
 
-### Integration Tests (27 tests)
+### Integration Tests
 
 Located in `tests/integration/`. Run with `just test-integration`.
 
-| Module | Tests | Purpose |
-|--------|-------|---------|
-| `test_pipeline.py` | 15 | End-to-end pipeline with mocked backends |
-| `test_consistency.py` | 12 | Response consistency and structure |
+| Module | Purpose |
+|--------|---------|
+| `test_pipeline.py` | End-to-end pipeline with mocked backends |
+| `test_consistency.py` | Response consistency and structure |
+| `test_clients.py` | Client integration with mocked HTTP responses |
 
 Key integration test categories:
 
@@ -275,24 +310,17 @@ Key integration test categories:
 - Timing values are non-negative
 - Total timing >= component sum
 
-### Performance Tests (18 tests)
+### Performance Tests
 
 Located in `tests/performance/`. Run with `just test-performance`.
 
-| Category | Tests | Purpose |
-|----------|-------|---------|
-| Dimension Latency | 7 | Measure latency vs image size (100x100 to 2000x2000) |
-| Endpoint Latency | 6 | Individual endpoint response times |
-| Throughput | 5 | Concurrent request handling (up to 16 workers) |
+| Category | Purpose |
+|----------|---------|
+| Dimension Latency | Measure latency vs image size |
+| Endpoint Latency | Individual endpoint response times |
+| Throughput | Concurrent request handling |
 
-**Results Summary:**
-- Throughput: 1241 req/s with 16 concurrent workers
-- P50 latency: 12.10 ms
-- P99 latency: 22.32 ms
-
-**Report Generation:**
-
-After tests complete, a markdown report is automatically generated at `reports/performance/gateway_service_performance.md`.
+After tests complete, a report is generated at `reports/performance/gateway_service_performance.md`.
 
 ### Manual Tests
 
@@ -352,17 +380,3 @@ Tests complete service lifecycle:
 | `a7c5f5a` | chore(gateway): remove placeholder test file |
 | `1c084b9` | fix(geometric): include uv.lock in Docker build |
 
----
-
-## Statistics
-
-| Metric | Value |
-|--------|-------|
-| Total Tests | 159 |
-| Unit Tests | 114 |
-| Integration Tests | 27 |
-| Performance Tests | 18 |
-| Source Files | 20 |
-| Test Files | 21 |
-| Lines Added | ~7,400 |
-| Test Coverage | 73% |

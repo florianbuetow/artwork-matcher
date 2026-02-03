@@ -167,11 +167,15 @@ async def identify_artwork(request: IdentifyRequest) -> IdentifyResponse:
                 candidates_considered=0,
                 threshold=threshold,
             ),
+            geometric_skipped=do_geometric,
+            geometric_skip_reason="no_candidates" if do_geometric else None,
         )
 
     # Step 3: Geometric verification (optional)
     geometric_scores: dict[str, float] = {}
     timing["geometric_ms"] = 0.0
+    geometric_skipped = False
+    geometric_skip_reason: str | None = None
 
     if do_geometric:
         t0 = time.perf_counter()
@@ -188,21 +192,20 @@ async def identify_artwork(request: IdentifyRequest) -> IdentifyResponse:
                     "Geometric verification requires reference images - "
                     "skipping (not implemented in this version)"
                 )
+                geometric_skipped = True
+                geometric_skip_reason = "not_implemented"
             else:
                 logger.warning("Geometric service unavailable, using embedding only")
+                geometric_skipped = True
+                geometric_skip_reason = "service_unavailable"
 
-        except (BackendError, httpx.HTTPError) as e:
+        except (BackendError, httpx.HTTPError, httpx.TimeoutException, httpx.ConnectError) as e:
             logger.warning(
                 "Geometric verification unavailable",
                 extra={"error": str(e), "error_type": type(e).__name__},
             )
-        except Exception as e:
-            # Unexpected error - log at ERROR level but allow graceful degradation
-            logger.error(
-                "Unexpected error during geometric verification",
-                extra={"error": str(e), "error_type": type(e).__name__},
-                exc_info=True,
-            )
+            geometric_skipped = True
+            geometric_skip_reason = "backend_error"
 
         timing["geometric_ms"] = (time.perf_counter() - t0) * 1000
 
@@ -237,6 +240,8 @@ async def identify_artwork(request: IdentifyRequest) -> IdentifyResponse:
                 highest_similarity=candidates[0].score if candidates else None,
                 threshold=threshold,
             ),
+            geometric_skipped=geometric_skipped,
+            geometric_skip_reason=geometric_skip_reason,
         )
 
     logger.info(
@@ -258,4 +263,6 @@ async def identify_artwork(request: IdentifyRequest) -> IdentifyResponse:
             candidates_verified=len(geometric_scores) if do_geometric else None,
             embedding_dimension=len(embedding),
         ),
+        geometric_skipped=geometric_skipped,
+        geometric_skip_reason=geometric_skip_reason,
     )
