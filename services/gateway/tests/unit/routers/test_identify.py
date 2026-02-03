@@ -167,3 +167,106 @@ class TestConfidenceCalculation:
         confidence = calculate_confidence(0.9, None, geometric_enabled=False)
         # 0.9 * 0.85 = 0.765
         assert 0.76 <= confidence <= 0.77
+
+
+@pytest.mark.unit
+class TestIdentifyBackendErrors:
+    """Tests for backend error handling in /identify endpoint."""
+
+    def test_identify_embeddings_backend_error(
+        self,
+        test_client: TestClient,
+        mock_app_state: MagicMock,
+    ) -> None:
+        """Test that embeddings service errors return 502 with proper error response."""
+        from gateway.core.exceptions import BackendError  # noqa: PLC0415
+
+        mock_app_state.embeddings_client.embed.side_effect = BackendError(
+            error="embeddings_error",
+            message="Embeddings service unavailable",
+            status_code=502,
+            details={"service": "embeddings"},
+        )
+
+        response = test_client.post(
+            "/identify",
+            json={"image": create_test_image_base64()},
+        )
+
+        assert response.status_code == 502
+        data = response.json()
+        assert data["error"] == "embeddings_error"
+        assert "embeddings" in data["message"].lower()
+
+    def test_identify_search_backend_error(
+        self,
+        test_client: TestClient,
+        mock_app_state: MagicMock,
+    ) -> None:
+        """Test that search service errors return 502 with proper error response."""
+        from gateway.core.exceptions import BackendError  # noqa: PLC0415
+
+        mock_app_state.search_client.search.side_effect = BackendError(
+            error="search_error",
+            message="Search service unavailable",
+            status_code=502,
+            details={"service": "search"},
+        )
+
+        response = test_client.post(
+            "/identify",
+            json={"image": create_test_image_base64()},
+        )
+
+        assert response.status_code == 502
+        data = response.json()
+        assert data["error"] == "search_error"
+        assert "search" in data["message"].lower()
+
+    def test_identify_embeddings_timeout(
+        self,
+        test_client: TestClient,
+        mock_app_state: MagicMock,
+    ) -> None:
+        """Test that embeddings service timeout returns 504."""
+        from gateway.core.exceptions import BackendError  # noqa: PLC0415
+
+        mock_app_state.embeddings_client.embed.side_effect = BackendError(
+            error="timeout",
+            message="Embeddings service timed out",
+            status_code=504,
+            details={"service": "embeddings", "timeout_seconds": 30},
+        )
+
+        response = test_client.post(
+            "/identify",
+            json={"image": create_test_image_base64()},
+        )
+
+        assert response.status_code == 504
+        data = response.json()
+        assert data["error"] == "timeout"
+
+    def test_identify_search_timeout(
+        self,
+        test_client: TestClient,
+        mock_app_state: MagicMock,
+    ) -> None:
+        """Test that search service timeout returns 504."""
+        from gateway.core.exceptions import BackendError  # noqa: PLC0415
+
+        mock_app_state.search_client.search.side_effect = BackendError(
+            error="timeout",
+            message="Search service timed out",
+            status_code=504,
+            details={"service": "search", "timeout_seconds": 30},
+        )
+
+        response = test_client.post(
+            "/identify",
+            json={"image": create_test_image_base64()},
+        )
+
+        assert response.status_code == 504
+        data = response.json()
+        assert data["error"] == "timeout"

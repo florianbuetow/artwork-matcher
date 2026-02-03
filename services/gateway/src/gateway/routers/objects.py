@@ -63,7 +63,7 @@ def load_metadata() -> dict[str, dict[str, Any]]:
                     }
     except Exception as e:
         logger = get_logger()
-        logger.warning(f"Failed to load metadata: {e}")
+        logger.error(f"Failed to load metadata: {e}", exc_info=True)
 
     return metadata
 

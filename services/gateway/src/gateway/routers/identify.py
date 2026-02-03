@@ -186,23 +186,28 @@ async def identify_artwork(request: IdentifyRequest) -> IdentifyResponse:
             geometric_status = await state.geometric_client.health_check()
 
             if geometric_status == "healthy":
-                # We need reference images - for now log a warning
+                # Log as error: feature is enabled but non-functional
                 # In production, you'd load images from data.objects_path
-                logger.warning(
+                logger.error(
                     "Geometric verification requires reference images - "
-                    "skipping (not implemented in this version)"
+                    "skipping (not implemented in this version)",
+                    exc_info=True,
                 )
                 geometric_skipped = True
                 geometric_skip_reason = "not_implemented"
             else:
-                logger.warning("Geometric service unavailable, using embedding only")
+                logger.error(
+                    "Geometric service unavailable, using embedding only",
+                    exc_info=True,
+                )
                 geometric_skipped = True
                 geometric_skip_reason = "service_unavailable"
 
         except (BackendError, httpx.HTTPError, httpx.TimeoutException, httpx.ConnectError) as e:
-            logger.warning(
+            logger.error(
                 "Geometric verification unavailable",
                 extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
             )
             geometric_skipped = True
             geometric_skip_reason = "backend_error"
