@@ -138,3 +138,80 @@ class TestFeatureCountLatency:
         print(f"Feature Count Test: max={max_features}, avg_actual={avg_features:.0f}")
         print(f"{'=' * 60}")
         print(metrics.summary())
+
+
+@pytest.mark.slow
+@pytest.mark.performance
+class TestMatchLatency:
+    """Test latency for different matching scenarios."""
+
+    def test_extract_only_latency(
+        self,
+        client: TestClient,
+        pregenerated_images: dict[str, tuple[str, float]],
+        performance_report: PerformanceReport,
+    ) -> None:
+        """
+        Measure baseline extraction latency (no matching).
+
+        Establishes baseline for comparison with full match.
+        """
+        image_base64, _ = pregenerated_images["match_query"]
+        metrics = LatencyMetrics()
+
+        for i in range(ITERATIONS_PER_SCENARIO):
+            start = time.perf_counter()
+            response = client.post(
+                "/extract",
+                json={"image": image_base64, "image_id": f"extract_only_{i}"},
+            )
+            elapsed_ms = (time.perf_counter() - start) * 1000
+
+            assert response.status_code == 200, f"Request failed: {response.text}"
+            metrics.add(elapsed_ms)
+
+        performance_report.add_match_result("extract_only", metrics)
+
+        print(f"\n{'=' * 60}")
+        print("Match Test: extract_only (baseline)")
+        print(f"{'=' * 60}")
+        print(metrics.summary())
+
+    def test_full_match_latency(
+        self,
+        client: TestClient,
+        pregenerated_images: dict[str, tuple[str, float]],
+        performance_report: PerformanceReport,
+    ) -> None:
+        """
+        Measure full match latency (extract + match + RANSAC).
+
+        Tests the complete geometric verification pipeline.
+        """
+        query_b64, _ = pregenerated_images["match_query"]
+        ref_b64, _ = pregenerated_images["match_reference"]
+
+        metrics = LatencyMetrics()
+
+        for i in range(ITERATIONS_PER_SCENARIO):
+            start = time.perf_counter()
+            response = client.post(
+                "/match",
+                json={
+                    "query_image": query_b64,
+                    "reference_image": ref_b64,
+                    "query_id": f"match_{i}",
+                    "reference_id": "ref",
+                },
+            )
+            elapsed_ms = (time.perf_counter() - start) * 1000
+
+            assert response.status_code == 200, f"Request failed: {response.text}"
+            metrics.add(elapsed_ms)
+
+        performance_report.add_match_result("full_match", metrics)
+
+        print(f"\n{'=' * 60}")
+        print("Match Test: full_match (extract + match + RANSAC)")
+        print(f"{'=' * 60}")
+        print(metrics.summary())
