@@ -38,7 +38,8 @@ class ORBFeatureExtractor:
             patch_size: Size of patch used for descriptor
             fast_threshold: FAST corner detection threshold
         """
-        self.orb = cv2.ORB_create(
+        # nosemgrep: config.semgrep.python.no-type-ignore
+        self.orb = cv2.ORB_create(  # type: ignore[attr-defined]
             nfeatures=max_features,
             scaleFactor=scale_factor,
             nlevels=n_levels,

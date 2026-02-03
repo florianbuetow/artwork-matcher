@@ -4,10 +4,13 @@ RANSAC-based geometric verification.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import cv2
 import numpy as np
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 
 def calculate_confidence(inliers: int, inlier_ratio: float) -> float:
@@ -95,11 +98,16 @@ class RANSACVerifier:
             }
 
         # Extract matched point coordinates
-        src_pts = np.float32([kp1[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
-        dst_pts = np.float32([kp2[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
+        src_pts = np.array([kp1[m.queryIdx].pt for m in matches], dtype=np.float32).reshape(
+            -1, 1, 2
+        )
+        dst_pts = np.array([kp2[m.trainIdx].pt for m in matches], dtype=np.float32).reshape(
+            -1, 1, 2
+        )
 
         # Find homography with RANSAC
-        H, mask = cv2.findHomography(
+        # Cast to Any first because OpenCV stubs incorrectly claim these can't be None
+        result = cv2.findHomography(
             src_pts,
             dst_pts,
             cv2.RANSAC,
@@ -107,9 +115,11 @@ class RANSACVerifier:
             maxIters=self.max_iters,
             confidence=self.confidence,
         )
+        H_result: NDArray[np.floating[Any]] | None = cast("Any", result[0])
+        mask_result: NDArray[np.uint8] | None = cast("Any", result[1])
 
         # Count inliers
-        inliers = 0 if mask is None else int(mask.ravel().sum())
+        inliers = 0 if mask_result is None else int(mask_result.ravel().sum())
 
         # Calculate inlier ratio
         inlier_ratio = inliers / total_matches if total_matches > 0 else 0.0
@@ -119,8 +129,8 @@ class RANSACVerifier:
 
         # Convert homography to list for JSON serialization
         homography: list[list[float]] | None = None
-        if H is not None and is_match:
-            homography = H.tolist()
+        if H_result is not None and is_match:
+            homography = H_result.tolist()
 
         # Calculate confidence score
         conf = calculate_confidence(inliers, inlier_ratio)

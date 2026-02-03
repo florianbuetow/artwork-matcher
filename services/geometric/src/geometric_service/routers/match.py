@@ -30,7 +30,7 @@ router = APIRouter()
 @router.post("/match", response_model=MatchResponse)
 async def match_images(request: MatchRequest) -> MatchResponse:
     """Geometrically verify two images."""
-    logger = get_logger()
+    logger = get_logger(__name__)
     start_time = time.perf_counter()
 
     settings = get_settings()
@@ -132,7 +132,7 @@ async def match_images(request: MatchRequest) -> MatchResponse:
 @router.post("/match/batch", response_model=BatchMatchResponse)
 async def batch_match(request: BatchMatchRequest) -> BatchMatchResponse:
     """Verify query against multiple references."""
-    logger = get_logger()
+    logger = get_logger(__name__)
     start_time = time.perf_counter()
 
     settings = get_settings()

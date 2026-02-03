@@ -37,7 +37,7 @@ async def service_error_handler(
     exc: ServiceError,
 ) -> JSONResponse:
     """Handle ServiceError exceptions."""
-    logger = get_logger()
+    logger = get_logger(__name__)
     logger.warning(
         "Service error",
         extra={
@@ -63,7 +63,7 @@ async def unhandled_exception_handler(
     _exc: Exception,
 ) -> JSONResponse:
     """Handle unexpected exceptions."""
-    logger = get_logger()
+    logger = get_logger(__name__)
     logger.exception(
         "Unhandled exception",
         extra={
@@ -83,7 +83,9 @@ async def unhandled_exception_handler(
 
 def register_exception_handlers(app: FastAPI) -> None:
     """Register all exception handlers on the app."""
-    # nosemgrep: python.lang.maintainability.useless-ifelse.useless-if-body
-    app.add_exception_handler(ServiceError, service_error_handler)  # type: ignore[arg-type]
-    # nosemgrep: python.lang.maintainability.useless-ifelse.useless-if-body
+    app.add_exception_handler(
+        ServiceError,
+        # nosemgrep: config.semgrep.python.no-type-ignore
+        service_error_handler,  # type: ignore[arg-type]
+    )
     app.add_exception_handler(Exception, unhandled_exception_handler)

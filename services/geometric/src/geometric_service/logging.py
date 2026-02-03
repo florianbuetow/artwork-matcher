@@ -82,6 +82,9 @@ class JSONFormatter(logging.Formatter):
         return json.dumps(log_data, default=str)
 
 
+VALID_LOG_LEVELS: frozenset[str] = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
+
+
 def setup_logging(level: str, service_name: str) -> logging.Logger:
     """
     Configure structured JSON logging for the service.
@@ -94,9 +97,10 @@ def setup_logging(level: str, service_name: str) -> logging.Logger:
         Configured logger instance
     """
     # Validate log level
-    numeric_level = getattr(logging, level.upper(), None)
-    if not isinstance(numeric_level, int):
-        raise ValueError(f"Invalid log level: {level}")
+    level_upper = level.upper()
+    if level_upper not in VALID_LOG_LEVELS:
+        raise ValueError(f"Invalid log level: {level}. Must be one of {sorted(VALID_LOG_LEVELS)}")
+    numeric_level = getattr(logging, level_upper)
 
     # Create logger
     logger = logging.getLogger(service_name)
@@ -118,7 +122,7 @@ def setup_logging(level: str, service_name: str) -> logging.Logger:
     return logger
 
 
-def get_logger(name: str | None = None) -> logging.Logger:
+def get_logger(name: str) -> logging.Logger:
     """
     Get a logger instance.
 
@@ -134,6 +138,6 @@ def get_logger(name: str | None = None) -> logging.Logger:
 
     settings = get_settings()
     base_name = settings.service.name
-    full_name = f"{base_name}.{name}" if name else base_name
+    full_name = f"{base_name}.{name}"
 
     return logging.getLogger(full_name)

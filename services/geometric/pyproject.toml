@@ -8,9 +8,7 @@ dependencies = [
     "uvicorn>=0.34.0",
     "opencv-python-headless>=4.10.0",
     "numpy>=2.0.0",
-    "pillow>=11.0.0",
     "pydantic>=2.10.0",
-    "pydantic-settings>=2.7.0",
     "pyyaml>=6.0.0",
 ]
 
@@ -20,6 +18,7 @@ dev = [
     "pytest-cov>=6.0.0",
     "pytest-asyncio>=0.24.0",
     "httpx>=0.28.0",
+    "pillow>=11.0.0",
     "ruff>=0.8.0",
     "mypy>=1.13.0",
     "pyright>=1.1.390",
@@ -71,6 +70,7 @@ ignore = [
 # nosemgrep comments trigger false positive ERA001 (commented-out code)
 "src/geometric_service/core/exceptions.py" = ["ERA001"]
 "src/geometric_service/core/lifespan.py" = ["ERA001"]
+"src/geometric_service/services/feature_extractor.py" = ["ERA001"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["geometric_service"]
@@ -145,12 +145,13 @@ show_missing = true
 extend_exclude = [".venv", "tests"]
 
 [tool.deptry.per_rule_ignores]
-# Dev dependencies are tools, not imported in code
+# Dev dependencies are tools, not imported in code (or only used in tests)
 DEP002 = [
     "pytest",
     "pytest-cov",
     "pytest-asyncio",
     "httpx",
+    "pillow",
     "ruff",
     "mypy",
     "pyright",

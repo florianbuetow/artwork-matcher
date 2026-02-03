@@ -23,7 +23,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
     # Initialize logging first
     setup_logging(settings.server.log_level, settings.service.name)
-    logger = get_logger()
+    logger = get_logger(__name__)
 
     # Initialize application state
     state = init_app_state()

@@ -27,14 +27,16 @@ router = APIRouter()
 @router.post("/extract", response_model=ExtractResponse)
 async def extract_features(request: ExtractRequest) -> ExtractResponse:
     """Extract ORB features from an image."""
-    logger = get_logger()
+    logger = get_logger(__name__)
     start_time = time.perf_counter()
 
     settings = get_settings()
 
     image_bytes = decode_base64_image(request.image)
 
-    max_features = request.max_features or settings.orb.max_features
+    max_features = (
+        request.max_features if request.max_features is not None else settings.orb.max_features
+    )
     extractor = ORBFeatureExtractor(
         max_features=max_features,
         scale_factor=settings.orb.scale_factor,
