@@ -6,7 +6,7 @@ Provides service health status for container orchestration.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter
 
@@ -20,7 +20,7 @@ router = APIRouter()
 async def health_check() -> HealthResponse:
     """Check service health."""
     state = get_app_state()
-    system_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
+    system_time = datetime.now(UTC).strftime("%Y-%m-%d %H:%M")
 
     return HealthResponse(
         status="healthy",

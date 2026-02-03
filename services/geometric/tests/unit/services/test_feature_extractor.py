@@ -49,7 +49,7 @@ class TestORBFeatureExtractor:
         """Should extract keypoints from image."""
         image_bytes = create_test_image_with_features()
 
-        keypoints, descriptors, image_size = orb_extractor.extract(image_bytes)
+        keypoints, _descriptors, _image_size = orb_extractor.extract(image_bytes)
 
         assert len(keypoints) > 0
         assert all("x" in kp and "y" in kp for kp in keypoints)
@@ -58,7 +58,7 @@ class TestORBFeatureExtractor:
         """Should return 32-byte descriptors."""
         image_bytes = create_test_image_with_features()
 
-        keypoints, descriptors, image_size = orb_extractor.extract(image_bytes)
+        _keypoints, descriptors, _image_size = orb_extractor.extract(image_bytes)
 
         assert descriptors is not None
         assert descriptors.shape[1] == 32  # ORB descriptors are 32 bytes
@@ -67,7 +67,7 @@ class TestORBFeatureExtractor:
         """Should return correct image size."""
         image_bytes = create_test_image_with_features(width=300, height=200)
 
-        keypoints, descriptors, image_size = orb_extractor.extract(image_bytes)
+        _keypoints, _descriptors, image_size = orb_extractor.extract(image_bytes)
 
         assert image_size == (300, 200)
 
@@ -82,9 +82,7 @@ class TestORBFeatureExtractor:
 
         assert exc_info.value.error == "invalid_image"
 
-    def test_keypoints_to_cv_converts_correctly(
-        self, orb_extractor: ORBFeatureExtractor
-    ) -> None:
+    def test_keypoints_to_cv_converts_correctly(self, orb_extractor: ORBFeatureExtractor) -> None:
         """Should convert serialized keypoints to cv2.KeyPoint objects."""
         serialized_kps = [
             {"x": 10.5, "y": 20.3, "size": 5.0, "angle": 45.0},

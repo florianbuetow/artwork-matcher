@@ -49,7 +49,10 @@ async def extract_features(request: ExtractRequest) -> ExtractResponse:
     if len(keypoints) < settings.verification.min_features:
         raise ServiceError(
             error="insufficient_features",
-            message=f"Only {len(keypoints)} features extracted (minimum: {settings.verification.min_features})",
+            message=(
+                f"Only {len(keypoints)} features extracted "
+                f"(minimum: {settings.verification.min_features})"
+            ),
             status_code=422,
             details={
                 "image_id": request.image_id,
@@ -64,8 +67,7 @@ async def extract_features(request: ExtractRequest) -> ExtractResponse:
         descriptors_b64 = ""
 
     kp_list = [
-        KeypointData(x=kp["x"], y=kp["y"], size=kp["size"], angle=kp["angle"])
-        for kp in keypoints
+        KeypointData(x=kp["x"], y=kp["y"], size=kp["size"], angle=kp["angle"]) for kp in keypoints
     ]
 
     processing_time_ms = (time.perf_counter() - start_time) * 1000

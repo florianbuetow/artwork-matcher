@@ -70,7 +70,10 @@ async def match_images(request: MatchRequest) -> MatchResponse:
     if len(query_kp) < settings.verification.min_features:
         raise ServiceError(
             error="insufficient_features",
-            message=f"Query has only {len(query_kp)} features (minimum: {settings.verification.min_features})",
+            message=(
+                f"Query has only {len(query_kp)} features "
+                f"(minimum: {settings.verification.min_features})"
+            ),
             status_code=422,
             details={"query_features": len(query_kp)},
         )
@@ -78,7 +81,10 @@ async def match_images(request: MatchRequest) -> MatchResponse:
     if len(ref_kp) < settings.verification.min_features:
         raise ServiceError(
             error="insufficient_features",
-            message=f"Reference has only {len(ref_kp)} features (minimum: {settings.verification.min_features})",
+            message=(
+                f"Reference has only {len(ref_kp)} features "
+                f"(minimum: {settings.verification.min_features})"
+            ),
             status_code=422,
             details={"reference_features": len(ref_kp)},
         )

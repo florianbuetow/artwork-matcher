@@ -109,10 +109,7 @@ class RANSACVerifier:
         )
 
         # Count inliers
-        if mask is None:
-            inliers = 0
-        else:
-            inliers = int(mask.ravel().sum())
+        inliers = 0 if mask is None else int(mask.ravel().sum())
 
         # Calculate inlier ratio
         inlier_ratio = inliers / total_matches if total_matches > 0 else 0.0

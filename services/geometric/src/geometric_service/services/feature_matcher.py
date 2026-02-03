@@ -7,9 +7,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import cv2
-import numpy as np
 
 if TYPE_CHECKING:
+    import numpy as np
     from numpy.typing import NDArray
 
 
@@ -66,9 +66,7 @@ class BFFeatureMatcher:
             m, n = match_pair
             # Perfect match (distance=0) is always accepted
             # This handles self-matching and exact duplicate features
-            if m.distance == 0:
-                good_matches.append(m)
-            elif m.distance < self.ratio_threshold * n.distance:
+            if m.distance == 0 or m.distance < self.ratio_threshold * n.distance:
                 good_matches.append(m)
 
         return good_matches

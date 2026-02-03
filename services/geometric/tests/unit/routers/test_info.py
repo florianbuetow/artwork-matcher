@@ -28,7 +28,7 @@ class TestInfoEndpoint:
             settings.verification.min_inliers = 10
             mock_settings.return_value = settings
 
-            from geometric_service.app import create_app
+            from geometric_service.app import create_app  # noqa: PLC0415
 
             app = create_app()
             client = TestClient(app, raise_server_exceptions=False)
@@ -53,7 +53,7 @@ class TestInfoEndpoint:
             settings.verification.min_inliers = 10
             mock_settings.return_value = settings
 
-            from geometric_service.app import create_app
+            from geometric_service.app import create_app  # noqa: PLC0415
 
             app = create_app()
             client = TestClient(app, raise_server_exceptions=False)

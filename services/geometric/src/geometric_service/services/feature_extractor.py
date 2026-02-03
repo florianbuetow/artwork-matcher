@@ -4,9 +4,13 @@ ORB feature extraction from images.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import cv2
 import numpy as np
-from numpy.typing import NDArray
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 from geometric_service.core.exceptions import ServiceError
 
@@ -97,9 +101,7 @@ class ORBFeatureExtractor:
 
         return keypoints, descriptors, image_size
 
-    def keypoints_to_cv(
-        self, keypoints: list[dict[str, float]]
-    ) -> list[cv2.KeyPoint]:
+    def keypoints_to_cv(self, keypoints: list[dict[str, float]]) -> list[cv2.KeyPoint]:
         """
         Convert serialized keypoints back to OpenCV KeyPoint objects.
 

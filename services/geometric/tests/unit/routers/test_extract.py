@@ -57,7 +57,7 @@ class TestExtractEndpoint:
         ):
             mock_settings.return_value = create_mock_settings()
 
-            from geometric_service.app import create_app
+            from geometric_service.app import create_app  # noqa: PLC0415
 
             app = create_app()
             client = TestClient(app, raise_server_exceptions=False)
@@ -78,7 +78,7 @@ class TestExtractEndpoint:
         ):
             mock_settings.return_value = create_mock_settings()
 
-            from geometric_service.app import create_app
+            from geometric_service.app import create_app  # noqa: PLC0415
 
             app = create_app()
             client = TestClient(app, raise_server_exceptions=False)
@@ -103,7 +103,7 @@ class TestExtractEndpoint:
         ):
             mock_settings.return_value = create_mock_settings()
 
-            from geometric_service.app import create_app
+            from geometric_service.app import create_app  # noqa: PLC0415
 
             app = create_app()
             client = TestClient(app, raise_server_exceptions=False)

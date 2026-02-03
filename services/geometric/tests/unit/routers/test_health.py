@@ -32,7 +32,7 @@ class TestHealthEndpoint:
             state.uptime_formatted = "2m 3s"
             mock_state.return_value = state
 
-            from geometric_service.app import create_app
+            from geometric_service.app import create_app  # noqa: PLC0415
 
             app = create_app()
             client = TestClient(app, raise_server_exceptions=False)
@@ -58,7 +58,7 @@ class TestHealthEndpoint:
             state.uptime_formatted = "2m 3s"
             mock_state.return_value = state
 
-            from geometric_service.app import create_app
+            from geometric_service.app import create_app  # noqa: PLC0415
 
             app = create_app()
             client = TestClient(app, raise_server_exceptions=False)
@@ -85,7 +85,7 @@ class TestHealthEndpoint:
             state.uptime_formatted = "2m 3s"
             mock_state.return_value = state
 
-            from geometric_service.app import create_app
+            from geometric_service.app import create_app  # noqa: PLC0415
 
             app = create_app()
             client = TestClient(app, raise_server_exceptions=False)

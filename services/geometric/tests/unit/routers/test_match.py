@@ -61,7 +61,7 @@ class TestMatchEndpoint:
         ):
             mock_settings.return_value = create_mock_settings()
 
-            from geometric_service.app import create_app
+            from geometric_service.app import create_app  # noqa: PLC0415
 
             app = create_app()
             client = TestClient(app, raise_server_exceptions=False)
@@ -86,7 +86,7 @@ class TestMatchEndpoint:
         ):
             mock_settings.return_value = create_mock_settings()
 
-            from geometric_service.app import create_app
+            from geometric_service.app import create_app  # noqa: PLC0415
 
             app = create_app()
             client = TestClient(app, raise_server_exceptions=False)
@@ -115,7 +115,7 @@ class TestBatchMatchEndpoint:
         ):
             mock_settings.return_value = create_mock_settings()
 
-            from geometric_service.app import create_app
+            from geometric_service.app import create_app  # noqa: PLC0415
 
             app = create_app()
             client = TestClient(app, raise_server_exceptions=False)
