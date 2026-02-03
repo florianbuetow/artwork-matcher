@@ -42,7 +42,7 @@ async def service_error_handler(
         "Service error",
         extra={
             "error": exc.error,
-            "message": exc.message,
+            "error_message": exc.message,
             "status_code": exc.status_code,
             "details": exc.details,
             "path": str(request.url.path),

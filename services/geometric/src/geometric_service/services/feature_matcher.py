@@ -64,7 +64,11 @@ class BFFeatureMatcher:
             if len(match_pair) < 2:
                 continue
             m, n = match_pair
-            if m.distance < self.ratio_threshold * n.distance:
+            # Perfect match (distance=0) is always accepted
+            # This handles self-matching and exact duplicate features
+            if m.distance == 0:
+                good_matches.append(m)
+            elif m.distance < self.ratio_threshold * n.distance:
                 good_matches.append(m)
 
         return good_matches
