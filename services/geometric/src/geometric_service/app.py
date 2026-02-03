@@ -13,7 +13,12 @@ from geometric_service.routers import extract, health, info, match
 
 
 def create_app() -> FastAPI:
-    """Create and configure FastAPI application."""
+    """
+    Create and configure FastAPI application.
+
+    Returns:
+        Configured FastAPI instance with all routers registered
+    """
     settings = get_settings()
 
     app = FastAPI(

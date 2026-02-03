@@ -4,11 +4,8 @@ Geometric matching endpoints.
 
 from __future__ import annotations
 
-import base64
-import binascii
 import time
 
-import numpy as np
 from fastapi import APIRouter
 
 from geometric_service.config import get_settings
@@ -25,38 +22,9 @@ from geometric_service.schemas import (
 from geometric_service.services.feature_extractor import ORBFeatureExtractor
 from geometric_service.services.feature_matcher import BFFeatureMatcher
 from geometric_service.services.geometric_verifier import RANSACVerifier
+from geometric_service.utils.image import decode_base64_image, decode_descriptors
 
 router = APIRouter()
-
-
-def decode_base64_image(base64_string: str) -> bytes:
-    """Decode base64 string to bytes."""
-    if "," in base64_string:
-        base64_string = base64_string.split(",", 1)[1]
-
-    try:
-        return base64.b64decode(base64_string)
-    except binascii.Error as e:
-        raise ServiceError(
-            error="decode_error",
-            message=f"Invalid Base64 encoding: {e}",
-            status_code=400,
-            details=None,
-        ) from e
-
-
-def decode_descriptors(descriptors_b64: str, num_features: int) -> np.ndarray:
-    """Decode base64 descriptors to numpy array."""
-    try:
-        desc_bytes = base64.b64decode(descriptors_b64)
-        return np.frombuffer(desc_bytes, dtype=np.uint8).reshape(num_features, 32)
-    except Exception as e:
-        raise ServiceError(
-            error="invalid_features",
-            message=f"Failed to decode descriptors: {e}",
-            status_code=400,
-            details=None,
-        ) from e
 
 
 @router.post("/match", response_model=MatchResponse)
@@ -233,7 +201,15 @@ async def batch_match(request: BatchMatchRequest) -> BatchMatchResponse:
                     confidence=result["confidence"],
                 )
 
-        except ServiceError:
+        except ServiceError as e:
+            logger.warning(
+                "Failed to process reference in batch match",
+                extra={
+                    "reference_id": ref.reference_id,
+                    "error": e.error,
+                    "message": e.message,
+                },
+            )
             results.append(
                 BatchMatchResult(
                     reference_id=ref.reference_id,

@@ -5,7 +5,6 @@ Feature extraction endpoint.
 from __future__ import annotations
 
 import base64
-import binascii
 import time
 
 from fastapi import APIRouter
@@ -20,24 +19,9 @@ from geometric_service.schemas import (
     KeypointData,
 )
 from geometric_service.services.feature_extractor import ORBFeatureExtractor
+from geometric_service.utils.image import decode_base64_image
 
 router = APIRouter()
-
-
-def decode_base64_image(base64_string: str) -> bytes:
-    """Decode base64 string to bytes."""
-    if "," in base64_string:
-        base64_string = base64_string.split(",", 1)[1]
-
-    try:
-        return base64.b64decode(base64_string)
-    except binascii.Error as e:
-        raise ServiceError(
-            error="decode_error",
-            message=f"Invalid Base64 encoding: {e}",
-            status_code=400,
-            details=None,
-        ) from e
 
 
 @router.post("/extract", response_model=ExtractResponse)
