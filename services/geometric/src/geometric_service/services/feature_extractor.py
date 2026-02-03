@@ -113,10 +113,10 @@ class ORBFeatureExtractor:
         for kp in keypoints:
             cv_keypoints.append(
                 cv2.KeyPoint(
-                    x=kp["x"],
-                    y=kp["y"],
-                    size=kp["size"],
-                    angle=kp["angle"],
+                    kp["x"],
+                    kp["y"],
+                    kp["size"],
+                    kp["angle"],
                 )
             )
         return cv_keypoints
