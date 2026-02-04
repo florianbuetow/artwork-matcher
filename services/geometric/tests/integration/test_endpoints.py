@@ -368,6 +368,130 @@ class TestEdgeCases:
 
 
 @pytest.mark.integration
+class TestMatchWithPreExtractedFeatures:
+    """
+    Integration tests for /match with pre-extracted reference features.
+
+    These tests verify the service can use pre-extracted features instead
+    of raw images, which is useful for caching reference features.
+    """
+
+    def test_match_with_reference_features(self, client) -> None:
+        """Match using pre-extracted features should work like image matching."""
+        # Create images
+        original = create_artwork_simulation_base64(300, 300, seed=1001)
+        query = create_transformed_image_base64(original, rotation_deg=5)
+
+        # First extract features from reference
+        extract_response = client.post(
+            "/extract",
+            json={"image": original, "image_id": "ref_1001"},
+        )
+        assert extract_response.status_code == 200
+        features = extract_response.json()
+
+        # Now match using pre-extracted features
+        match_response = client.post(
+            "/match",
+            json={
+                "query_image": query,
+                "reference_features": {
+                    "keypoints": features["keypoints"],
+                    "descriptors": features["descriptors"],
+                },
+            },
+        )
+        assert match_response.status_code == 200
+        data = match_response.json()
+        assert data["is_match"] is True, (
+            f"Match with pre-extracted features should work. "
+            f"Got inliers={data['inliers']}, ratio={data['inlier_ratio']}"
+        )
+
+    def test_match_with_reference_features_no_match(self, client) -> None:
+        """Non-matching query against pre-extracted features should return is_match=False."""
+        # Create different images - use noise images for guaranteed high feature count
+        reference = create_noise_image_base64(300, 300, seed=1002)
+        query = create_noise_image_base64(300, 300, seed=1003)
+
+        # Extract features from reference
+        extract_response = client.post(
+            "/extract",
+            json={"image": reference, "image_id": "ref_1002"},
+        )
+        assert extract_response.status_code == 200
+        features = extract_response.json()
+
+        # Match with different image
+        match_response = client.post(
+            "/match",
+            json={
+                "query_image": query,
+                "reference_features": {
+                    "keypoints": features["keypoints"],
+                    "descriptors": features["descriptors"],
+                },
+            },
+        )
+        assert match_response.status_code == 200
+        data = match_response.json()
+        assert data["is_match"] is False, (
+            f"Different images should not match. "
+            f"Got inliers={data['inliers']}, confidence={data['confidence']}"
+        )
+
+
+@pytest.mark.integration
+class TestMatchRequestValidation:
+    """
+    Integration tests for MatchRequest validation.
+
+    These tests verify the XOR validation on reference_image/reference_features.
+    """
+
+    def test_match_requires_reference(self, client) -> None:
+        """Match without any reference should return 422 validation error."""
+        query = create_artwork_simulation_base64(200, 200, seed=2001)
+
+        response = client.post(
+            "/match",
+            json={"query_image": query},
+        )
+        assert response.status_code == 422
+        # Pydantic validation error
+        data = response.json()
+        assert "detail" in data
+
+    def test_match_rejects_both_reference_types(self, client) -> None:
+        """Match with both reference_image and reference_features should return 422."""
+        original = create_artwork_simulation_base64(200, 200, seed=2002)
+
+        # Extract features first
+        extract_response = client.post(
+            "/extract",
+            json={"image": original},
+        )
+        assert extract_response.status_code == 200
+        features = extract_response.json()
+
+        # Try to provide both
+        response = client.post(
+            "/match",
+            json={
+                "query_image": original,
+                "reference_image": original,
+                "reference_features": {
+                    "keypoints": features["keypoints"],
+                    "descriptors": features["descriptors"],
+                },
+            },
+        )
+        assert response.status_code == 422
+        data = response.json()
+        assert "detail" in data
+
+
+@pytest.mark.integration
 class TestBatchMatchAccuracy:
     """
     Integration tests for batch matching accuracy.

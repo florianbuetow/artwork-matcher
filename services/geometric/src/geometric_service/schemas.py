@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 # === Helper Models ===
 
@@ -91,6 +91,17 @@ class MatchRequest(BaseModel):
     reference_id: str | None = None
     """Optional identifier for reference image."""
 
+    @model_validator(mode="after")
+    def validate_reference_xor(self) -> MatchRequest:
+        """Validate that exactly one of reference_image or reference_features is provided."""
+        has_image = self.reference_image is not None
+        has_features = self.reference_features is not None
+        if has_image and has_features:
+            raise ValueError("Provide either reference_image or reference_features, not both")
+        if not has_image and not has_features:
+            raise ValueError("Must provide either reference_image or reference_features")
+        return self
+
 
 class ReferenceInput(BaseModel):
     """Reference input for batch matching."""
@@ -105,6 +116,17 @@ class ReferenceInput(BaseModel):
 
     reference_features: ReferenceFeatures | None = None
     """Pre-extracted features for reference image."""
+
+    @model_validator(mode="after")
+    def validate_reference_xor(self) -> ReferenceInput:
+        """Validate that exactly one of reference_image or reference_features is provided."""
+        has_image = self.reference_image is not None
+        has_features = self.reference_features is not None
+        if has_image and has_features:
+            raise ValueError("Provide either reference_image or reference_features, not both")
+        if not has_image and not has_features:
+            raise ValueError("Must provide either reference_image or reference_features")
+        return self
 
 
 class BatchMatchRequest(BaseModel):
