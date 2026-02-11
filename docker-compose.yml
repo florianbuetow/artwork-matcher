@@ -2,13 +2,13 @@ services:
   embeddings:
     build: ./services/embeddings
     ports:
-      - "8001:8000"
+      - "8001:8001"
     volumes:
-      - ./data:/data:ro
+      - ./data:/app/data:ro
     environment:
       - CONFIG_PATH=/app/config.yaml
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -16,13 +16,13 @@ services:
   search:
     build: ./services/search
     ports:
-      - "8002:8000"
+      - "8002:8002"
     volumes:
-      - ./data:/data
+      - ./data:/app/data
     environment:
       - CONFIG_PATH=/app/config.yaml
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -30,13 +30,13 @@ services:
   geometric:
     build: ./services/geometric
     ports:
-      - "8003:8000"
+      - "8003:8003"
     volumes:
-      - ./data:/data:ro
+      - ./data:/app/data:ro
     environment:
       - CONFIG_PATH=/app/config.yaml
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -46,12 +46,10 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./data:/data:ro
+      - ./data:/app/data:ro
+      - ./services/gateway/config.docker.yaml:/app/config.yaml:ro
     environment:
       - CONFIG_PATH=/app/config.yaml
-      - EMBEDDINGS_URL=http://embeddings:8000
-      - SEARCH_URL=http://search:8000
-      - GEOMETRIC_URL=http://geometric:8000
     depends_on:
       embeddings:
         condition: service_healthy

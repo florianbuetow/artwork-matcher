@@ -154,6 +154,10 @@ test-all:
 test service:
     cd services/{{service}} && just test
 
+# Run tests for tools scripts
+test-tools:
+    cd tools && uv run python -m unittest discover -s tests -p "test_*.py" -v
+
 # === CI ===
 
 # Run CI checks for all services (verbose)
@@ -218,8 +222,12 @@ download *ARGS:
 
 # Build the FAISS index from object images
 build-index:
-    cd tools && just build-index
+    cd tools && uv run python build_index.py --objects ../data/evaluation/objects --embeddings-url http://localhost:8001 --search-url http://localhost:8002
 
 # Evaluate accuracy against labels.csv
 evaluate:
-    cd tools && just evaluate
+    cd tools && uv run python evaluate.py --testdata ../data/evaluation --output ../reports/evaluation --gateway-url http://localhost:8000 --k 10 --threshold 0.0
+
+# Run full E2E evaluation (starts Docker, builds index, evaluates)
+run-evaluation:
+    cd tools && uv run python run_evaluation.py --testdata ../data/evaluation --output ../reports/evaluation --gateway-url http://localhost:8000 --embeddings-url http://localhost:8001 --search-url http://localhost:8002 --geometric-url http://localhost:8003 --k 10 --threshold 0.0

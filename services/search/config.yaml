@@ -12,8 +12,8 @@ faiss:
   metric: "inner_product"           # inner_product, l2
 
 index:
-  path: "/data/index/faiss.index"
-  metadata_path: "/data/index/metadata.json"
+  path: "./data/index/faiss.index"
+  metadata_path: "./data/index/metadata.json"
   auto_load: true                   # Load index on startup if exists
 
 search:

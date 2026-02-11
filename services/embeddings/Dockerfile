@@ -11,6 +11,6 @@ RUN uv sync --frozen --no-dev
 COPY config.yaml .
 COPY src/ src/
 
-EXPOSE 8000
+EXPOSE 8001
 
-CMD ["uv", "run", "uvicorn", "embeddings_service.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "uvicorn", "embeddings_service.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8001"]

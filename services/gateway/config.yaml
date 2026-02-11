@@ -26,5 +26,5 @@ server:
     - "*"
 
 data:
-  objects_path: "/data/objects"
-  labels_path: "/data/labels.csv"
+  objects_path: "./data/objects"
+  labels_path: "./data/labels.csv"
