@@ -47,12 +47,29 @@ backends:
   search_url: "http://localhost:8002"
   geometric_url: "http://localhost:8003"
   timeout_seconds: 30.0
+  retry:
+    max_attempts: 3
+    initial_backoff_seconds: 0.1
+    max_backoff_seconds: 1.0
+    jitter_seconds: 0.05
+  circuit_breaker:
+    failure_threshold: 5
+    recovery_timeout_seconds: 15.0
 
 pipeline:
   search_k: 5
   similarity_threshold: 0.7
   geometric_verification: true
   confidence_threshold: 0.6
+
+scoring:
+  geometric_score_threshold: 0.5
+  geometric_high_similarity_weight: 0.6
+  geometric_high_score_weight: 0.4
+  geometric_low_similarity_weight: 0.3
+  geometric_low_score_weight: 0.2
+  geometric_missing_penalty: 0.7
+  embedding_only_penalty: 0.85
 
 server:
   host: "0.0.0.0"

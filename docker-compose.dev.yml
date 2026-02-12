@@ -1,7 +1,8 @@
 services:
   embeddings:
     build:
-      context: ./services/embeddings
+      context: .
+      dockerfile: services/embeddings/Dockerfile
     volumes:
       - ./services/embeddings/src:/app/src
       - ./data:/app/data:ro
@@ -9,7 +10,8 @@ services:
 
   search:
     build:
-      context: ./services/search
+      context: .
+      dockerfile: services/search/Dockerfile
     volumes:
       - ./services/search/src:/app/src
       - ./data:/app/data
@@ -17,7 +19,8 @@ services:
 
   geometric:
     build:
-      context: ./services/geometric
+      context: .
+      dockerfile: services/geometric/Dockerfile
     volumes:
       - ./services/geometric/src:/app/src
       - ./data:/app/data:ro
@@ -25,7 +28,8 @@ services:
 
   gateway:
     build:
-      context: ./services/gateway
+      context: .
+      dockerfile: services/gateway/Dockerfile
     volumes:
       - ./services/gateway/src:/app/src
       - ./data:/app/data:ro

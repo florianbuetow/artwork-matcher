@@ -16,6 +16,21 @@ if TYPE_CHECKING:
     from fastapi.testclient import TestClient
 
 
+def create_scoring_config() -> object:
+    """Create scoring config matching gateway defaults."""
+    from gateway.config import ScoringConfig  # noqa: PLC0415
+
+    return ScoringConfig(
+        geometric_score_threshold=0.5,
+        geometric_high_similarity_weight=0.6,
+        geometric_high_score_weight=0.4,
+        geometric_low_similarity_weight=0.3,
+        geometric_low_score_weight=0.2,
+        geometric_missing_penalty=0.7,
+        embedding_only_penalty=0.85,
+    )
+
+
 @pytest.mark.unit
 class TestIdentifyEndpoint:
     """Tests for POST /identify endpoint."""
@@ -38,6 +53,8 @@ class TestIdentifyEndpoint:
         assert data["match"]["object_id"] == "object_001"
         assert "confidence" in data["match"]
         assert "timing" in data
+        assert data["degraded"] is False
+        assert data["degradation_reason"] is None
 
     def test_identify_no_match(
         self,
@@ -190,6 +207,8 @@ class TestIdentifyEndpoint:
         assert data["match"]["geometric_score"] is None
         assert data["geometric_skipped"] is True
         assert data["geometric_skip_reason"] == "no_reference_images"
+        assert data["degraded"] is False
+        assert data["degradation_reason"] is None
         mock_app_state.geometric_client.match_batch.assert_not_called()
 
     def test_identify_geometric_falls_back_on_backend_error(
@@ -222,6 +241,8 @@ class TestIdentifyEndpoint:
         assert data["match"]["geometric_score"] is None
         assert data["geometric_skipped"] is True
         assert data["geometric_skip_reason"] == "backend_error"
+        assert data["degraded"] is True
+        assert data["degradation_reason"] == "geometric_backend_unavailable"
 
     def test_identify_geometric_skips_candidate_when_reference_read_fails(
         self,
@@ -244,6 +265,8 @@ class TestIdentifyEndpoint:
         assert data["match"]["geometric_score"] is None
         assert data["geometric_skipped"] is True
         assert data["geometric_skip_reason"] == "no_reference_images"
+        assert data["degraded"] is False
+        assert data["degradation_reason"] is None
         mock_app_state.geometric_client.match_batch.assert_not_called()
 
     def test_identify_geometric_marks_no_results_when_batch_empty(
@@ -272,6 +295,8 @@ class TestIdentifyEndpoint:
         assert data["match"]["geometric_score"] is None
         assert data["geometric_skipped"] is True
         assert data["geometric_skip_reason"] == "no_results"
+        assert data["degraded"] is False
+        assert data["degradation_reason"] is None
 
 
 @pytest.mark.unit
@@ -282,8 +307,9 @@ class TestConfidenceCalculation:
         """Test confidence calculation when geometric verification passes."""
         from gateway.routers.identify import calculate_confidence  # noqa: PLC0415
 
+        scoring = create_scoring_config()
         # High similarity, high geometric score
-        confidence = calculate_confidence(0.9, 0.8, geometric_enabled=True)
+        confidence = calculate_confidence(0.9, 0.8, geometric_enabled=True, scoring=scoring)
         # 0.6 * 0.9 + 0.4 * 0.8 = 0.54 + 0.32 = 0.86
         assert 0.85 <= confidence <= 0.87
 
@@ -291,8 +317,9 @@ class TestConfidenceCalculation:
         """Test confidence calculation when geometric verification fails."""
         from gateway.routers.identify import calculate_confidence  # noqa: PLC0415
 
+        scoring = create_scoring_config()
         # High similarity but low geometric score
-        confidence = calculate_confidence(0.9, 0.3, geometric_enabled=True)
+        confidence = calculate_confidence(0.9, 0.3, geometric_enabled=True, scoring=scoring)
         # 0.3 * 0.9 + 0.2 * 0.3 = 0.27 + 0.06 = 0.33
         assert 0.32 <= confidence <= 0.34
 
@@ -300,7 +327,8 @@ class TestConfidenceCalculation:
         """Test confidence when geometric was supposed to run but didn't."""
         from gateway.routers.identify import calculate_confidence  # noqa: PLC0415
 
-        confidence = calculate_confidence(0.9, None, geometric_enabled=True)
+        scoring = create_scoring_config()
+        confidence = calculate_confidence(0.9, None, geometric_enabled=True, scoring=scoring)
         # 0.9 * 0.7 = 0.63
         assert 0.62 <= confidence <= 0.64
 
@@ -308,7 +336,8 @@ class TestConfidenceCalculation:
         """Test confidence when geometric was intentionally skipped."""
         from gateway.routers.identify import calculate_confidence  # noqa: PLC0415
 
-        confidence = calculate_confidence(0.9, None, geometric_enabled=False)
+        scoring = create_scoring_config()
+        confidence = calculate_confidence(0.9, None, geometric_enabled=False, scoring=scoring)
         # 0.9 * 0.85 = 0.765
         assert 0.76 <= confidence <= 0.77
 

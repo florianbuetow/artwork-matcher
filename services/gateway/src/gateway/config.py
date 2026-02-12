@@ -7,14 +7,47 @@ Every value must be explicitly specified or startup fails.
 
 from __future__ import annotations
 
-import os
-import re
-from functools import lru_cache
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import yaml
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field
+from service_commons.config import (
+    REDACTION_MARKER,
+    SENSITIVE_KEYWORDS,
+    ConfigurationError,
+    create_settings_loader,
+    get_safe_model_config,
+    is_sensitive_key,
+    load_yaml_config,
+    redact_sensitive_values,
+)
+from service_commons.config import (
+    get_config_path as resolve_config_path,
+)
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+__all__ = [
+    "REDACTION_MARKER",
+    "SENSITIVE_KEYWORDS",
+    "BackendsConfig",
+    "CircuitBreakerConfig",
+    "ConfigurationError",
+    "DataConfig",
+    "PipelineConfig",
+    "RetryConfig",
+    "ScoringConfig",
+    "ServerConfig",
+    "ServiceConfig",
+    "Settings",
+    "clear_settings_cache",
+    "get_config_path",
+    "get_safe_config",
+    "get_settings",
+    "is_sensitive_key",
+    "load_yaml_config",
+    "redact_sensitive_values",
+]
 
 
 class ServiceConfig(BaseModel):
@@ -26,15 +59,37 @@ class ServiceConfig(BaseModel):
     version: str
 
 
+class RetryConfig(BaseModel):
+    """Retry behavior for backend requests."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    max_attempts: int = Field(..., ge=1)
+    initial_backoff_seconds: float = Field(..., gt=0)
+    max_backoff_seconds: float = Field(..., gt=0)
+    jitter_seconds: float = Field(..., ge=0)
+
+
+class CircuitBreakerConfig(BaseModel):
+    """Circuit breaker thresholds for backend requests."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    failure_threshold: int = Field(..., ge=1)
+    recovery_timeout_seconds: float = Field(..., gt=0)
+
+
 class BackendsConfig(BaseModel):
-    """Backend service URLs and timeouts."""
+    """Backend service URLs, timeout, retry, and circuit breaker settings."""
 
     model_config = ConfigDict(extra="forbid")
 
     embeddings_url: str
     search_url: str
     geometric_url: str
-    timeout_seconds: float
+    timeout_seconds: float = Field(..., gt=0)
+    retry: RetryConfig
+    circuit_breaker: CircuitBreakerConfig
 
 
 class PipelineConfig(BaseModel):
@@ -42,10 +97,24 @@ class PipelineConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    search_k: int
-    similarity_threshold: float
+    search_k: int = Field(..., ge=1)
+    similarity_threshold: float = Field(..., ge=0, le=1)
     geometric_verification: bool
-    confidence_threshold: float
+    confidence_threshold: float = Field(..., ge=0, le=1)
+
+
+class ScoringConfig(BaseModel):
+    """Confidence scoring weights and thresholds."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    geometric_score_threshold: float = Field(..., ge=0, le=1)
+    geometric_high_similarity_weight: float = Field(..., ge=0, le=1)
+    geometric_high_score_weight: float = Field(..., ge=0, le=1)
+    geometric_low_similarity_weight: float = Field(..., ge=0, le=1)
+    geometric_low_score_weight: float = Field(..., ge=0, le=1)
+    geometric_missing_penalty: float = Field(..., ge=0, le=1)
+    embedding_only_penalty: float = Field(..., ge=0, le=1)
 
 
 class ServerConfig(BaseModel):
@@ -54,7 +123,7 @@ class ServerConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     host: str
-    port: int
+    port: int = Field(..., ge=1, le=65535)
     log_level: str
     cors_origins: list[str]
 
@@ -85,54 +154,9 @@ class Settings(BaseModel):
     service: ServiceConfig
     backends: BackendsConfig
     pipeline: PipelineConfig
+    scoring: ScoringConfig
     server: ServerConfig
     data: DataConfig
-
-
-class ConfigurationError(Exception):
-    """Raised when configuration is invalid or missing."""
-
-    pass
-
-
-def load_yaml_config(config_path: Path) -> dict[str, Any]:
-    """
-    Load and parse YAML configuration file.
-
-    Args:
-        config_path: Path to config.yaml
-
-    Returns:
-        Parsed configuration dictionary
-
-    Raises:
-        ConfigurationError: If file is missing, empty, or invalid
-    """
-    if not config_path.exists():
-        raise ConfigurationError(
-            f"Configuration file not found: {config_path}\n"
-            f"Expected location: {config_path.absolute()}\n"
-            f"Create the file or set CONFIG_PATH environment variable."
-        )
-
-    try:
-        with config_path.open() as f:
-            config = yaml.safe_load(f)
-    except yaml.YAMLError as e:
-        raise ConfigurationError(f"Invalid YAML in {config_path}: {e}") from e
-
-    if config is None:
-        raise ConfigurationError(
-            f"Configuration file is empty: {config_path}\n"
-            f"All configuration values must be explicitly specified."
-        )
-
-    if not isinstance(config, dict):
-        raise ConfigurationError(
-            f"Configuration must be a YAML mapping, got {type(config).__name__}"
-        )
-
-    return config
 
 
 def get_config_path() -> Path:
@@ -145,117 +169,13 @@ def get_config_path() -> Path:
     Returns:
         Path to configuration file
     """
-    config_path_str = os.environ.get("CONFIG_PATH")
-    if config_path_str is None:
-        config_path_str = "config.yaml"
-    return Path(config_path_str)
+    return resolve_config_path(
+        env_var_name="CONFIG_PATH",
+        default_filename="config.yaml",
+    )
 
 
-@lru_cache
-def get_settings() -> Settings:
-    """
-    Load and validate configuration.
-
-    Cached to ensure single instance across application.
-    Called once at startup - fails fast on invalid config.
-
-    Returns:
-        Validated Settings instance
-
-    Raises:
-        ConfigurationError: Config file missing or invalid
-        ValidationError: Config values fail validation
-    """
-    config_path = get_config_path()
-    yaml_config = load_yaml_config(config_path)
-
-    try:
-        return Settings(**yaml_config)
-    except ValidationError as e:
-        raise ConfigurationError(
-            f"Configuration validation failed: {e}\n"
-            f"All configuration values must be explicitly specified.\n"
-            f"No default values are allowed."
-        ) from e
-
-
-def clear_settings_cache() -> None:
-    """Clear the settings cache. Used in testing."""
-    get_settings.cache_clear()
-
-
-# Keywords that indicate sensitive data (case-insensitive)
-SENSITIVE_KEYWORDS: frozenset[str] = frozenset(
-    {
-        "key",
-        "secret",
-        "pass",
-        "password",
-        "token",
-        "credential",
-        "auth",
-        "api_key",
-        "apikey",
-        "private",
-        "bearer",
-    }
-)
-
-# Compiled regex for efficient matching
-_SENSITIVE_PATTERN = re.compile(
-    r"(" + "|".join(re.escape(kw) for kw in SENSITIVE_KEYWORDS) + r")",
-    re.IGNORECASE,
-)
-
-
-def is_sensitive_key(key: str) -> bool:
-    """
-    Check if a configuration key contains sensitive keywords.
-
-    Args:
-        key: Configuration key name
-
-    Returns:
-        True if the key likely contains sensitive data
-    """
-    return bool(_SENSITIVE_PATTERN.search(key))
-
-
-REDACTION_MARKER: str = "[REDACTED]"
-
-
-def redact_sensitive_values(
-    data: dict[str, Any],
-    redaction_marker: str,
-) -> dict[str, Any]:
-    """
-    Recursively redact sensitive values from configuration.
-
-    Used by /info endpoint to safely expose configuration.
-
-    Args:
-        data: Configuration dictionary
-        redaction_marker: String to replace sensitive values
-
-    Returns:
-        New dictionary with sensitive values redacted
-    """
-    result: dict[str, Any] = {}
-
-    for key, value in data.items():
-        if is_sensitive_key(key):
-            result[key] = redaction_marker
-        elif isinstance(value, dict):
-            result[key] = redact_sensitive_values(value, redaction_marker)
-        elif isinstance(value, list):
-            result[key] = [
-                redact_sensitive_values(item, redaction_marker) if isinstance(item, dict) else item
-                for item in value
-            ]
-        else:
-            result[key] = value
-
-    return result
+get_settings, clear_settings_cache = create_settings_loader(Settings, get_config_path)  # nosemgrep
 
 
 def get_safe_config() -> dict[str, Any]:
@@ -265,6 +185,4 @@ def get_safe_config() -> dict[str, Any]:
     Returns:
         Configuration dictionary safe for logging/API exposure
     """
-    settings = get_settings()
-    raw_config = settings.model_dump()
-    return redact_sensitive_values(raw_config, REDACTION_MARKER)
+    return get_safe_model_config(get_settings(), REDACTION_MARKER)

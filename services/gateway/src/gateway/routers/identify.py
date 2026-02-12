@@ -33,6 +33,7 @@ from gateway.schemas import (
 
 if TYPE_CHECKING:
     from gateway.clients.search import SearchResult
+    from gateway.config import ScoringConfig
 
 router = APIRouter()
 
@@ -90,6 +91,7 @@ def calculate_confidence(
     similarity: float,
     geometric_score: float | None,
     geometric_enabled: bool,
+    scoring: ScoringConfig,
 ) -> float:
     """
     Calculate overall match confidence.
@@ -100,30 +102,38 @@ def calculate_confidence(
     - If geometric is disabled: apply embedding-only penalty
     """
     if geometric_score is not None:
-        if geometric_score > 0.5:
+        if geometric_score > scoring.geometric_score_threshold:
             # Geometric confirmed: high confidence
-            return 0.6 * similarity + 0.4 * geometric_score
+            return (
+                scoring.geometric_high_similarity_weight * similarity
+                + scoring.geometric_high_score_weight * geometric_score
+            )
         else:
             # Geometric rejected: low confidence despite similarity
-            return 0.3 * similarity + 0.2 * geometric_score
+            return (
+                scoring.geometric_low_similarity_weight * similarity
+                + scoring.geometric_low_score_weight * geometric_score
+            )
     elif geometric_enabled:
         # Geometric was supposed to run but didn't
-        return similarity * 0.7  # Penalty for missing verification
+        return similarity * scoring.geometric_missing_penalty
     else:
         # Geometric intentionally skipped
-        return similarity * 0.85  # Small penalty
+        return similarity * scoring.embedding_only_penalty
 
 
 def build_match(
     candidate: SearchResult,
     geometric_score: float | None,
     geometric_enabled: bool,
+    scoring: ScoringConfig,
 ) -> Match:
     """Build a Match object from search result and geometric verification."""
     confidence = calculate_confidence(
         candidate.score,
         geometric_score,
         geometric_enabled,
+        scoring,
     )
 
     return Match(
@@ -228,6 +238,8 @@ async def identify_artwork(request: IdentifyRequest) -> IdentifyResponse:
     timing["geometric_ms"] = 0.0
     geometric_skipped = False
     geometric_skip_reason: str | None = None
+    degraded = False
+    degradation_reason: str | None = None
 
     if do_geometric:
         t0 = time.perf_counter()
@@ -269,6 +281,8 @@ async def identify_artwork(request: IdentifyRequest) -> IdentifyResponse:
             )
             geometric_skipped = True
             geometric_skip_reason = "backend_error"
+            degraded = True
+            degradation_reason = "geometric_backend_unavailable"
 
         timing["geometric_ms"] = (time.perf_counter() - t0) * 1000
 
@@ -276,7 +290,7 @@ async def identify_artwork(request: IdentifyRequest) -> IdentifyResponse:
     matches: list[Match] = []
     for candidate in candidates:
         geo_score = geometric_scores.get(candidate.object_id)
-        match = build_match(candidate, geo_score, do_geometric)
+        match = build_match(candidate, geo_score, do_geometric, settings.scoring)
 
         # Filter by confidence threshold
         if match.confidence >= settings.pipeline.confidence_threshold:
@@ -305,6 +319,8 @@ async def identify_artwork(request: IdentifyRequest) -> IdentifyResponse:
             ),
             geometric_skipped=geometric_skipped,
             geometric_skip_reason=geometric_skip_reason,
+            degraded=degraded,
+            degradation_reason=degradation_reason,
         )
 
     logger.info(
@@ -313,6 +329,8 @@ async def identify_artwork(request: IdentifyRequest) -> IdentifyResponse:
             "match": best_match.object_id,
             "confidence": best_match.confidence,
             "total_ms": timing["total_ms"],
+            "degraded": degraded,
+            "degradation_reason": degradation_reason,
         },
     )
 
@@ -328,4 +346,6 @@ async def identify_artwork(request: IdentifyRequest) -> IdentifyResponse:
         ),
         geometric_skipped=geometric_skipped,
         geometric_skip_reason=geometric_skip_reason,
+        degraded=degraded,
+        degradation_reason=degradation_reason,
     )

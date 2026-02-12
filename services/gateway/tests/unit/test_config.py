@@ -24,6 +24,54 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+def build_valid_config() -> dict[str, object]:
+    """Build a fully valid gateway config payload."""
+    return {
+        "service": {"name": "gateway", "version": "0.1.0"},
+        "backends": {
+            "embeddings_url": "http://localhost:8001",
+            "search_url": "http://localhost:8002",
+            "geometric_url": "http://localhost:8003",
+            "timeout_seconds": 30.0,
+            "retry": {
+                "max_attempts": 3,
+                "initial_backoff_seconds": 0.1,
+                "max_backoff_seconds": 1.0,
+                "jitter_seconds": 0.05,
+            },
+            "circuit_breaker": {
+                "failure_threshold": 5,
+                "recovery_timeout_seconds": 15.0,
+            },
+        },
+        "pipeline": {
+            "search_k": 5,
+            "similarity_threshold": 0.7,
+            "geometric_verification": True,
+            "confidence_threshold": 0.6,
+        },
+        "scoring": {
+            "geometric_score_threshold": 0.5,
+            "geometric_high_similarity_weight": 0.6,
+            "geometric_high_score_weight": 0.4,
+            "geometric_low_similarity_weight": 0.3,
+            "geometric_low_score_weight": 0.2,
+            "geometric_missing_penalty": 0.7,
+            "embedding_only_penalty": 0.85,
+        },
+        "server": {
+            "host": "0.0.0.0",
+            "port": 8000,
+            "log_level": "info",
+            "cors_origins": ["*"],
+        },
+        "data": {
+            "objects_path": "/data/objects",
+            "labels_path": "/data/labels.csv",
+        },
+    }
+
+
 @pytest.mark.unit
 class TestLoadYamlConfig:
     """Tests for YAML configuration loading."""
@@ -41,11 +89,27 @@ backends:
   search_url: "http://localhost:8002"
   geometric_url: "http://localhost:8003"
   timeout_seconds: 30.0
+  retry:
+    max_attempts: 3
+    initial_backoff_seconds: 0.1
+    max_backoff_seconds: 1.0
+    jitter_seconds: 0.05
+  circuit_breaker:
+    failure_threshold: 5
+    recovery_timeout_seconds: 15.0
 pipeline:
   search_k: 5
   similarity_threshold: 0.7
   geometric_verification: true
   confidence_threshold: 0.6
+scoring:
+  geometric_score_threshold: 0.5
+  geometric_high_similarity_weight: 0.6
+  geometric_high_score_weight: 0.4
+  geometric_low_similarity_weight: 0.3
+  geometric_low_score_weight: 0.2
+  geometric_missing_penalty: 0.7
+  embedding_only_penalty: 0.85
 server:
   host: "0.0.0.0"
   port: 8000
@@ -115,12 +179,31 @@ class TestSettings:
                 "search_url": "http://localhost:8002",
                 "geometric_url": "http://localhost:8003",
                 "timeout_seconds": 30.0,
+                "retry": {
+                    "max_attempts": 3,
+                    "initial_backoff_seconds": 0.1,
+                    "max_backoff_seconds": 1.0,
+                    "jitter_seconds": 0.05,
+                },
+                "circuit_breaker": {
+                    "failure_threshold": 5,
+                    "recovery_timeout_seconds": 15.0,
+                },
             },
             "pipeline": {
                 "search_k": 5,
                 "similarity_threshold": 0.7,
                 "geometric_verification": True,
                 "confidence_threshold": 0.6,
+            },
+            "scoring": {
+                "geometric_score_threshold": 0.5,
+                "geometric_high_similarity_weight": 0.6,
+                "geometric_high_score_weight": 0.4,
+                "geometric_low_similarity_weight": 0.3,
+                "geometric_low_score_weight": 0.2,
+                "geometric_missing_penalty": 0.7,
+                "embedding_only_penalty": 0.85,
             },
             "server": {
                 "host": "0.0.0.0",
@@ -150,12 +233,31 @@ class TestSettings:
                 "search_url": "http://localhost:8002",
                 "geometric_url": "http://localhost:8003",
                 "timeout_seconds": 30.0,
+                "retry": {
+                    "max_attempts": 3,
+                    "initial_backoff_seconds": 0.1,
+                    "max_backoff_seconds": 1.0,
+                    "jitter_seconds": 0.05,
+                },
+                "circuit_breaker": {
+                    "failure_threshold": 5,
+                    "recovery_timeout_seconds": 15.0,
+                },
             },
             "pipeline": {
                 "search_k": 5,
                 "similarity_threshold": 0.7,
                 "geometric_verification": True,
                 "confidence_threshold": 0.6,
+            },
+            "scoring": {
+                "geometric_score_threshold": 0.5,
+                "geometric_high_similarity_weight": 0.6,
+                "geometric_high_score_weight": 0.4,
+                "geometric_low_similarity_weight": 0.3,
+                "geometric_low_score_weight": 0.2,
+                "geometric_missing_penalty": 0.7,
+                "embedding_only_penalty": 0.85,
             },
             "server": {
                 "host": "0.0.0.0",
@@ -183,12 +285,31 @@ class TestSettings:
                 "search_url": "http://localhost:8002",
                 "geometric_url": "http://localhost:8003",
                 "timeout_seconds": 30.0,
+                "retry": {
+                    "max_attempts": 3,
+                    "initial_backoff_seconds": 0.1,
+                    "max_backoff_seconds": 1.0,
+                    "jitter_seconds": 0.05,
+                },
+                "circuit_breaker": {
+                    "failure_threshold": 5,
+                    "recovery_timeout_seconds": 15.0,
+                },
             },
             "pipeline": {
                 "search_k": 5,
                 "similarity_threshold": 0.7,
                 "geometric_verification": True,
                 "confidence_threshold": 0.6,
+            },
+            "scoring": {
+                "geometric_score_threshold": 0.5,
+                "geometric_high_similarity_weight": 0.6,
+                "geometric_high_score_weight": 0.4,
+                "geometric_low_similarity_weight": 0.3,
+                "geometric_low_score_weight": 0.2,
+                "geometric_missing_penalty": 0.7,
+                "embedding_only_penalty": 0.85,
             },
             "server": {
                 "host": "0.0.0.0",
@@ -217,12 +338,31 @@ class TestSettings:
                 "search_url": "http://localhost:8002",
                 "geometric_url": "http://localhost:8003",
                 "timeout_seconds": 30.0,
+                "retry": {
+                    "max_attempts": 3,
+                    "initial_backoff_seconds": 0.1,
+                    "max_backoff_seconds": 1.0,
+                    "jitter_seconds": 0.05,
+                },
+                "circuit_breaker": {
+                    "failure_threshold": 5,
+                    "recovery_timeout_seconds": 15.0,
+                },
             },
             "pipeline": {
                 "search_k": 5,
                 "similarity_threshold": 0.7,
                 "geometric_verification": True,
                 "confidence_threshold": 0.6,
+            },
+            "scoring": {
+                "geometric_score_threshold": 0.5,
+                "geometric_high_similarity_weight": 0.6,
+                "geometric_high_score_weight": 0.4,
+                "geometric_low_similarity_weight": 0.3,
+                "geometric_low_score_weight": 0.2,
+                "geometric_missing_penalty": 0.7,
+                "embedding_only_penalty": 0.85,
             },
             "server": {
                 "host": "0.0.0.0",
@@ -248,12 +388,31 @@ class TestSettings:
                 "search_url": "http://localhost:8002",
                 "geometric_url": "http://localhost:8003",
                 "timeout_seconds": 30.0,
+                "retry": {
+                    "max_attempts": 3,
+                    "initial_backoff_seconds": 0.1,
+                    "max_backoff_seconds": 1.0,
+                    "jitter_seconds": 0.05,
+                },
+                "circuit_breaker": {
+                    "failure_threshold": 5,
+                    "recovery_timeout_seconds": 15.0,
+                },
             },
             "pipeline": {
                 "search_k": 5,
                 "similarity_threshold": "not_a_float",  # Invalid type
                 "geometric_verification": True,
                 "confidence_threshold": 0.6,
+            },
+            "scoring": {
+                "geometric_score_threshold": 0.5,
+                "geometric_high_similarity_weight": 0.6,
+                "geometric_high_score_weight": 0.4,
+                "geometric_low_similarity_weight": 0.3,
+                "geometric_low_score_weight": 0.2,
+                "geometric_missing_penalty": 0.7,
+                "embedding_only_penalty": 0.85,
             },
             "server": {
                 "host": "0.0.0.0",
@@ -266,6 +425,38 @@ class TestSettings:
                 "labels_path": "/data/labels.csv",
             },
         }
+
+        with pytest.raises(ValidationError):
+            Settings(**config)
+
+    def test_invalid_retry_attempts_value_raises_error(self) -> None:
+        """Retry max_attempts must be >= 1."""
+        config = build_valid_config()
+        backends = config["backends"]
+        assert isinstance(backends, dict)
+        retry = backends["retry"]
+        assert isinstance(retry, dict)
+        retry["max_attempts"] = 0
+
+        with pytest.raises(ValidationError):
+            Settings(**config)
+
+    def test_invalid_similarity_range_raises_error(self) -> None:
+        """Similarity threshold must be in [0, 1]."""
+        config = build_valid_config()
+        pipeline = config["pipeline"]
+        assert isinstance(pipeline, dict)
+        pipeline["similarity_threshold"] = 1.5
+
+        with pytest.raises(ValidationError):
+            Settings(**config)
+
+    def test_invalid_server_port_range_raises_error(self) -> None:
+        """Port must be in valid TCP range."""
+        config = build_valid_config()
+        server = config["server"]
+        assert isinstance(server, dict)
+        server["port"] = 70000
 
         with pytest.raises(ValidationError):
             Settings(**config)

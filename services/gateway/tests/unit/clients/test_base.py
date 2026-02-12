@@ -33,6 +33,7 @@ class TestBackendClientRequest:
         assert exc_info.value.status_code == 504
         assert exc_info.value.error == "backend_timeout"
         assert "timed out" in exc_info.value.message
+        assert mock_httpx_client.request.call_count == backend_client.retry_max_attempts
 
     async def test_request_connection_error_raises_backend_error_502(
         self,
@@ -48,6 +49,7 @@ class TestBackendClientRequest:
         assert exc_info.value.status_code == 502
         assert exc_info.value.error == "backend_unavailable"
         assert "not responding" in exc_info.value.message
+        assert mock_httpx_client.request.call_count == backend_client.retry_max_attempts
 
     async def test_request_http_error_with_json_body_includes_details(
         self,
@@ -100,6 +102,7 @@ class TestBackendClientRequest:
         assert exc_info.value.error == "backend_error"
         # Should contain the original error message as fallback
         assert "Internal Server Error" in exc_info.value.message
+        assert mock_httpx_client.request.call_count == backend_client.retry_max_attempts
 
     async def test_request_success_returns_json(
         self,
@@ -118,6 +121,78 @@ class TestBackendClientRequest:
 
         assert result == {"key": "value", "number": 42}
         mock_httpx_client.request.assert_called_once_with("GET", "/test")
+
+    async def test_circuit_breaker_opens_after_failure_threshold(
+        self,
+        backend_client: BackendClient,
+        mock_httpx_client: AsyncMock,
+    ) -> None:
+        """Repeated failures open the circuit and subsequent calls fail fast."""
+        backend_client.circuit_breaker_failure_threshold = 2
+        mock_httpx_client.request.side_effect = httpx.ConnectError("Connection refused")
+
+        with pytest.raises(BackendError):
+            await backend_client._request("GET", "/test")
+
+        with pytest.raises(BackendError):
+            await backend_client._request("GET", "/test")
+
+        with pytest.raises(BackendError) as exc_info:
+            await backend_client._request("GET", "/test")
+
+        assert exc_info.value.status_code == 503
+        assert exc_info.value.error == "backend_circuit_open"
+
+        # Third call should fail fast without making new HTTP attempts
+        expected_calls = backend_client.retry_max_attempts * 2
+        assert mock_httpx_client.request.call_count == expected_calls
+
+    async def test_request_does_not_retry_non_transient_501(
+        self,
+        backend_client: BackendClient,
+        mock_httpx_client: AsyncMock,
+    ) -> None:
+        """HTTP 501 is treated as non-retryable and should fail immediately."""
+        mock_response = MagicMock(spec=httpx.Response)
+        mock_response.status_code = 501
+        mock_response.json.return_value = {"error": "not_implemented", "message": "Not implemented"}
+
+        http_error = httpx.HTTPStatusError(
+            "Not Implemented",
+            request=MagicMock(),
+            response=mock_response,
+        )
+        mock_httpx_client.request.side_effect = http_error
+
+        with pytest.raises(BackendError):
+            await backend_client._request("GET", "/test")
+
+        assert mock_httpx_client.request.call_count == 1
+
+    async def test_circuit_half_open_success_closes_circuit(
+        self,
+        backend_client: BackendClient,
+        mock_httpx_client: AsyncMock,
+    ) -> None:
+        """A successful probe in half-open state should close the circuit."""
+        backend_client.circuit_breaker_failure_threshold = 1
+        backend_client.circuit_breaker_recovery_timeout_seconds = 0.0
+
+        mock_httpx_client.request.side_effect = httpx.ConnectError("Connection refused")
+        with pytest.raises(BackendError):
+            await backend_client._request("GET", "/test")
+
+        mock_response = MagicMock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"ok": True}
+        mock_response.raise_for_status = MagicMock()
+        mock_httpx_client.request.side_effect = None
+        mock_httpx_client.request.return_value = mock_response
+
+        result = await backend_client._request("GET", "/test")
+
+        assert result == {"ok": True}
+        assert backend_client._circuit_state == "closed"
 
 
 @pytest.mark.unit
