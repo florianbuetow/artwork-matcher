@@ -44,9 +44,11 @@ docker-logs service="":
     docker compose logs -f {{service}}
     @echo ""
 
-# Build all Docker images
+# Build all Docker images (destroys existing images first)
 docker-build:
     @echo ""
+    @printf "\033[0;34m=== Destroying Existing Docker Images ===\033[0m\n"
+    docker compose down --rmi all --volumes 2>/dev/null || true
     @printf "\033[0;34m=== Building All Docker Images ===\033[0m\n"
     docker compose build
     @printf "\033[0;32m✓ Build complete\033[0m\n"
