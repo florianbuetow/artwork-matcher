@@ -98,7 +98,7 @@ def identify_image(
         return MatchResult(
             picture_id=picture_id,
             mode=mode,
-            matched_object_id=str(match.get("object_id")) if match else None,
+            matched_object_id=str(match["object_id"]) if match and match.get("object_id") is not None else None,
             similarity_score=_to_optional_float(match.get("similarity_score")) if match else None,
             geometric_score=_to_optional_float(match.get("geometric_score")) if match else None,
             confidence=_to_optional_float(match.get("confidence")) if match else None,

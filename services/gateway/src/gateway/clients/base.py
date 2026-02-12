@@ -284,6 +284,13 @@ class BackendClient:
                 "Backend health check failed: invalid JSON response",
                 extra={"backend": self.service_name},
             )
+        except Exception:
+            await self._record_failure("/health", "unexpected_error")
+            status = "error"
+            logger.exception(
+                "Backend health check failed: unexpected error",
+                extra={"backend": self.service_name},
+            )
 
         return status
 
