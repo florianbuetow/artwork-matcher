@@ -1,0 +1,46 @@
+# Gateway Service Configuration (Docker)
+# Used when running in Docker Compose - backends use container hostnames
+
+service:
+  name: "gateway"
+  version: "0.1.0"
+
+backends:
+  embeddings_url: "http://embeddings:8001"
+  search_url: "http://search:8002"
+  geometric_url: "http://geometric:8003"
+  timeout_seconds: 30.0
+  retry:
+    max_attempts: 3
+    initial_backoff_seconds: 0.1
+    max_backoff_seconds: 1.0
+    jitter_seconds: 0.05
+  circuit_breaker:
+    failure_threshold: 5
+    recovery_timeout_seconds: 15.0
+
+pipeline:
+  search_k: 10                      # Number of candidates to retrieve
+  similarity_threshold: 0.0         # Minimum embedding similarity (0 for evaluation)
+  geometric_verification: true      # Enable geometric verification stage
+  confidence_threshold: 0.0         # Minimum confidence to return match (0 for evaluation)
+
+scoring:
+  geometric_score_threshold: 0.5
+  geometric_high_similarity_weight: 0.6
+  geometric_high_score_weight: 0.4
+  geometric_low_similarity_weight: 0.3
+  geometric_low_score_weight: 0.2
+  geometric_missing_penalty: 0.7
+  embedding_only_penalty: 0.85
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+  log_level: "info"
+  cors_origins:
+    - "*"
+
+data:
+  objects_path: "./data/evaluation/objects"
+  labels_path: "./data/evaluation/labels.csv"

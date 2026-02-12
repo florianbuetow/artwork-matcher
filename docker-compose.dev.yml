@@ -1,32 +1,36 @@
 services:
   embeddings:
     build:
-      context: ./services/embeddings
+      context: .
+      dockerfile: services/embeddings/Dockerfile
     volumes:
-      - ./services/embeddings/src:/app/src
-      - ./data:/data:ro
+      - ./services/embeddings/src:/repo/services/embeddings/src
+      - ./data:/repo/services/embeddings/data:ro
     command: uv run uvicorn embeddings_service.app:app --reload --host 0.0.0.0
 
   search:
     build:
-      context: ./services/search
+      context: .
+      dockerfile: services/search/Dockerfile
     volumes:
-      - ./services/search/src:/app/src
-      - ./data:/data
+      - ./services/search/src:/repo/services/search/src
+      - ./data:/repo/services/search/data
     command: uv run uvicorn search_service.app:app --reload --host 0.0.0.0
 
   geometric:
     build:
-      context: ./services/geometric
+      context: .
+      dockerfile: services/geometric/Dockerfile
     volumes:
-      - ./services/geometric/src:/app/src
-      - ./data:/data:ro
+      - ./services/geometric/src:/repo/services/geometric/src
+      - ./data:/repo/services/geometric/data:ro
     command: uv run uvicorn geometric_service.app:app --reload --host 0.0.0.0
 
   gateway:
     build:
-      context: ./services/gateway
+      context: .
+      dockerfile: services/gateway/Dockerfile
     volumes:
-      - ./services/gateway/src:/app/src
-      - ./data:/data:ro
+      - ./services/gateway/src:/repo/services/gateway/src
+      - ./data:/repo/services/gateway/data:ro
     command: uv run uvicorn gateway.app:app --reload --host 0.0.0.0

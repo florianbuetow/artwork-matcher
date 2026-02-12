@@ -40,11 +40,15 @@ docker-down:
 
 # View Docker logs (optionally for a specific service)
 docker-logs service="":
+    @echo ""
     docker compose logs -f {{service}}
+    @echo ""
 
-# Build all Docker images
+# Build all Docker images (destroys existing images first)
 docker-build:
     @echo ""
+    @printf "\033[0;34m=== Destroying Existing Docker Images ===\033[0m\n"
+    docker compose down --rmi all --volumes 2>/dev/null || true
     @printf "\033[0;34m=== Building All Docker Images ===\033[0m\n"
     docker compose build
     @printf "\033[0;32m✓ Build complete\033[0m\n"
@@ -97,19 +101,27 @@ status:
 
 # Run embeddings service locally
 run-embeddings:
+    @echo ""
     cd services/embeddings && just run
+    @echo ""
 
 # Run search service locally
 run-search:
+    @echo ""
     cd services/search && just run
+    @echo ""
 
 # Run geometric service locally
 run-geometric:
+    @echo ""
     cd services/geometric && just run
+    @echo ""
 
 # Run gateway service locally
 run-gateway:
+    @echo ""
     cd services/gateway && just run
+    @echo ""
 
 # === Initialize All Services ===
 
@@ -152,7 +164,15 @@ test-all:
 
 # Run tests for a specific service
 test service:
+    @echo ""
     cd services/{{service}} && just test
+    @echo ""
+
+# Run tests for tools scripts
+test-tools:
+    @echo ""
+    cd tools && uv run python -m unittest discover -s tests -p "test_*.py" -v
+    @echo ""
 
 # === CI ===
 
@@ -175,6 +195,7 @@ ci-all:
 ci-all-quiet:
     #!/usr/bin/env bash
     set -e
+    printf "\n"
     printf "\033[0;34m=== Running CI for All Services (Quiet Mode) ===\033[0m\n"
 
     printf "Checking embeddings...\n"
@@ -193,33 +214,57 @@ ci-all-quiet:
     printf "\033[0;32m✓ All CI checks passed\033[0m\n"
     printf "\n"
 
-# Run CI for a specific service
-ci service:
-    cd services/{{service}} && just ci
+# Run CI (all services by default, or one specific service)
+ci service="all":
+    #!/usr/bin/env bash
+    set -e
+    printf "\n"
+    if [ "{{service}}" = "all" ]; then
+        just ci-all
+    else
+        cd services/{{service}} && just ci
+    fi
+    printf "\n"
 
 # === Code Quality (Root Level) ===
 
 # Format all services
 format-all:
+    @echo ""
     cd services/embeddings && just code-format
     cd services/search && just code-format
     cd services/geometric && just code-format
     cd services/gateway && just code-format
+    @echo ""
 
 # === Data Pipeline ===
 
 # Download diverse batch from Rijksmuseum (10 objects per type, configurable)
 download-batch:
+    @echo ""
     cd tools && just download-batch
+    @echo ""
 
 # Download Rijksmuseum data with custom options (e.g., just download --limit 100)
 download *ARGS:
+    @echo ""
     cd tools && just download {{ ARGS }}
+    @echo ""
 
 # Build the FAISS index from object images
 build-index:
-    cd tools && just build-index
+    @echo ""
+    cd tools && uv run python build_index.py --objects ../data/evaluation/objects --embeddings-url http://localhost:8001 --search-url http://localhost:8002
+    @echo ""
 
 # Evaluate accuracy against labels.csv
 evaluate:
-    cd tools && just evaluate
+    @echo ""
+    cd tools && uv run python evaluate.py --testdata ../data/evaluation --output ../reports/evaluation --gateway-url http://localhost:8000 --k 10 --threshold 0.0
+    @echo ""
+
+# Run full E2E evaluation (starts Docker, builds index, evaluates)
+run-evaluation:
+    @echo ""
+    cd tools && uv run python run_evaluation.py --testdata ../data/evaluation --output ../reports/evaluation --gateway-url http://localhost:8000 --embeddings-url http://localhost:8001 --search-url http://localhost:8002 --geometric-url http://localhost:8003 --k 10 --threshold 0.0
+    @echo ""

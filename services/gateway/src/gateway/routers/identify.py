@@ -10,6 +10,7 @@ Orchestrates the identification pipeline:
 
 from __future__ import annotations
 
+import base64
 import time
 from typing import TYPE_CHECKING
 
@@ -20,6 +21,7 @@ from gateway.config import get_settings
 from gateway.core.exceptions import BackendError
 from gateway.core.state import get_app_state
 from gateway.logging import get_logger
+from gateway.routers.objects import find_image_path
 from gateway.schemas import (
     DebugInfo,
     IdentifyOptions,
@@ -31,47 +33,107 @@ from gateway.schemas import (
 
 if TYPE_CHECKING:
     from gateway.clients.search import SearchResult
+    from gateway.config import ScoringConfig
 
 router = APIRouter()
+
+
+def build_geometric_references(
+    candidates: list[SearchResult],
+) -> tuple[list[dict[str, str]], int]:
+    """
+    Build base64-encoded reference payloads for geometric batch matching.
+
+    Returns:
+        Tuple of (references payload, skipped_count)
+    """
+    logger = get_logger()
+    references: list[dict[str, str]] = []
+    skipped_count = 0
+
+    for candidate in candidates:
+        image_path = find_image_path(candidate.object_id)
+        if image_path is None:
+            skipped_count += 1
+            logger.warning(
+                "Reference image not found for geometric verification",
+                extra={"object_id": candidate.object_id},
+            )
+            continue
+
+        try:
+            image_bytes = image_path.read_bytes()
+        except OSError as e:
+            skipped_count += 1
+            logger.error(
+                "Failed to read reference image for geometric verification",
+                extra={
+                    "object_id": candidate.object_id,
+                    "image_path": str(image_path),
+                    "error": str(e),
+                },
+                exc_info=True,
+            )
+            continue
+
+        reference_image = base64.b64encode(image_bytes).decode("ascii")
+        references.append(
+            {
+                "reference_id": candidate.object_id,
+                "reference_image": reference_image,
+            }
+        )
+
+    return references, skipped_count
 
 
 def calculate_confidence(
     similarity: float,
     geometric_score: float | None,
     geometric_enabled: bool,
+    scoring: ScoringConfig,
 ) -> float:
     """
     Calculate overall match confidence.
 
-    - If geometric verification passed: weight both scores
-    - If geometric verification failed: reduce confidence
-    - If geometric not performed: use similarity with penalty
+    - If geometric verification score is high: weight similarity and geometric score
+    - If geometric verification score is low: apply stricter penalty
+    - If geometric should run but no score is available: apply missing-verification penalty
+    - If geometric is disabled: apply embedding-only penalty
     """
     if geometric_score is not None:
-        if geometric_score > 0.5:
+        if geometric_score > scoring.geometric_score_threshold:
             # Geometric confirmed: high confidence
-            return 0.6 * similarity + 0.4 * geometric_score
+            return (
+                scoring.geometric_high_similarity_weight * similarity
+                + scoring.geometric_high_score_weight * geometric_score
+            )
         else:
             # Geometric rejected: low confidence despite similarity
-            return 0.3 * similarity + 0.2 * geometric_score
+            return (
+                scoring.geometric_low_similarity_weight * similarity
+                + scoring.geometric_low_score_weight * geometric_score
+            )
     elif geometric_enabled:
         # Geometric was supposed to run but didn't
-        return similarity * 0.7  # Penalty for missing verification
+        return similarity * scoring.geometric_missing_penalty
     else:
         # Geometric intentionally skipped
-        return similarity * 0.85  # Small penalty
+        return similarity * scoring.embedding_only_penalty
 
 
 def build_match(
     candidate: SearchResult,
     geometric_score: float | None,
     geometric_enabled: bool,
+    scoring: ScoringConfig,
 ) -> Match:
     """Build a Match object from search result and geometric verification."""
     confidence = calculate_confidence(
         candidate.score,
         geometric_score,
         geometric_enabled,
+        scoring,
     )
 
     return Match(
@@ -176,33 +238,41 @@ async def identify_artwork(request: IdentifyRequest) -> IdentifyResponse:
     timing["geometric_ms"] = 0.0
     geometric_skipped = False
     geometric_skip_reason: str | None = None
+    degraded = False
+    degradation_reason: str | None = None
 
     if do_geometric:
         t0 = time.perf_counter()
+        references, skipped_references = build_geometric_references(candidates)
         try:
-            # Build references list for batch matching
-            # Note: In a full implementation, we'd load reference images from storage
-            # For now, we'll skip if geometric service is unavailable
-            geometric_status = await state.geometric_client.health_check()
-
-            if geometric_status == "healthy":
-                # Log as error: feature is enabled but non-functional
-                # In production, you'd load images from data.objects_path
-                logger.error(
-                    "Geometric verification requires reference images - "
-                    "skipping (not implemented in this version)",
-                    exc_info=True,
+            if references:
+                batch_result = await state.geometric_client.match_batch(
+                    query_image=request.image,
+                    references=references,
                 )
-                geometric_skipped = True
-                geometric_skip_reason = "not_implemented"
+                for result in batch_result.results:
+                    geometric_scores[result.reference_id] = result.confidence
+
+                logger.debug(
+                    "Geometric verification completed",
+                    extra={
+                        "candidates": len(candidates),
+                        "references_sent": len(references),
+                        "references_skipped": skipped_references,
+                        "verified_results": len(geometric_scores),
+                    },
+                )
+
+                if len(geometric_scores) == 0:
+                    geometric_skipped = True
+                    geometric_skip_reason = "no_results"
             else:
-                logger.error(
-                    "Geometric service unavailable, using embedding only",
-                    exc_info=True,
-                )
                 geometric_skipped = True
-                geometric_skip_reason = "service_unavailable"
-
+                geometric_skip_reason = "no_reference_images"
+                logger.warning(
+                    "Skipping geometric verification because no reference images were found",
+                    extra={"candidates": len(candidates)},
+                )
         except (BackendError, httpx.HTTPError, httpx.TimeoutException, httpx.ConnectError) as e:
             logger.error(
                 "Geometric verification unavailable",
@@ -211,6 +281,8 @@ async def identify_artwork(request: IdentifyRequest) -> IdentifyResponse:
             )
             geometric_skipped = True
             geometric_skip_reason = "backend_error"
+            degraded = True
+            degradation_reason = "geometric_backend_unavailable"
 
         timing["geometric_ms"] = (time.perf_counter() - t0) * 1000
 
@@ -218,7 +290,7 @@ async def identify_artwork(request: IdentifyRequest) -> IdentifyResponse:
     matches: list[Match] = []
     for candidate in candidates:
         geo_score = geometric_scores.get(candidate.object_id)
-        match = build_match(candidate, geo_score, do_geometric)
+        match = build_match(candidate, geo_score, do_geometric, settings.scoring)
 
         # Filter by confidence threshold
         if match.confidence >= settings.pipeline.confidence_threshold:
@@ -247,6 +319,8 @@ async def identify_artwork(request: IdentifyRequest) -> IdentifyResponse:
             ),
             geometric_skipped=geometric_skipped,
             geometric_skip_reason=geometric_skip_reason,
+            degraded=degraded,
+            degradation_reason=degradation_reason,
         )
 
     logger.info(
@@ -255,6 +329,8 @@ async def identify_artwork(request: IdentifyRequest) -> IdentifyResponse:
             "match": best_match.object_id,
             "confidence": best_match.confidence,
             "total_ms": timing["total_ms"],
+            "degraded": degraded,
+            "degradation_reason": degradation_reason,
         },
     )
 
@@ -270,4 +346,6 @@ async def identify_artwork(request: IdentifyRequest) -> IdentifyResponse:
         ),
         geometric_skipped=geometric_skipped,
         geometric_skip_reason=geometric_skip_reason,
+        degraded=degraded,
+        degradation_reason=degradation_reason,
     )

@@ -18,18 +18,39 @@ destroy:
     @printf "\033[0;32m✓ Virtual environment removed\033[0m\n"
     @echo ""
 
-# Build the FAISS index from object images
-build-index:
+# Run full E2E evaluation (starts Docker, builds index, evaluates)
+run-evaluation testdata="../data/evaluation":
     @echo ""
-    @printf "\033[0;34m=== Building Index ===\033[0m\n"
-    @uv run python build_index.py
+    @printf "\033[0;34m=== Running E2E Evaluation ===\033[0m\n"
+    @uv run python run_evaluation.py --testdata "{{testdata}}"
     @echo ""
 
-# Evaluate accuracy against labels.csv
-evaluate:
+# Run evaluation only (assumes services running and index built)
+evaluate-only testdata="../data/evaluation":
+    @echo ""
+    @printf "\033[0;34m=== Running Evaluation ===\033[0m\n"
+    @uv run python evaluate.py --testdata "{{testdata}}"
+    @echo ""
+
+# Build the FAISS index from object images
+build-index objects="../data/evaluation/objects":
+    @echo ""
+    @printf "\033[0;34m=== Building Index ===\033[0m\n"
+    @uv run python build_index.py --objects "{{objects}}"
+    @echo ""
+
+# Evaluate accuracy against labels.csv (alias for evaluate-only)
+evaluate testdata="../data/evaluation":
     @echo ""
     @printf "\033[0;34m=== Evaluating Accuracy ===\033[0m\n"
-    @uv run python evaluate.py
+    @uv run python evaluate.py --testdata "{{testdata}}"
+    @echo ""
+
+# Verify the E2E evaluation pipeline is correctly wired up
+verify testdata="../data/evaluation" reports="../reports/evaluation":
+    @echo ""
+    @printf "\033[0;34m=== Verifying E2E Evaluation ===\033[0m\n"
+    @uv run python verify_evaluation.py --testdata "{{testdata}}" --reports "{{reports}}"
     @echo ""
 
 # Download Rijksmuseum data (pass arguments after --)

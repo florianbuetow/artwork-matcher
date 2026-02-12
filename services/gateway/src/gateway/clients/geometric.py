@@ -57,10 +57,16 @@ class BatchMatchResult:
             [GeometricResult(r) for r in results] if results is not None else []
         )
 
-        best_match = data.get("best_match")  # nosemgrep: no-dict-get-with-default
-        self.best_match: GeometricResult | None = (
-            GeometricResult(best_match) if best_match else None
-        )
+        best_match_data = data.get("best_match")  # nosemgrep: no-dict-get-with-default
+        self.best_match: GeometricResult | None = None
+        if best_match_data:
+            # best_match from the API only has reference_id and confidence,
+            # find the full result from the results list to get is_match/inliers
+            best_ref_id = best_match_data.get("reference_id")
+            for r in self.results:
+                if r.reference_id == best_ref_id:
+                    self.best_match = r
+                    break
 
         processing_time_ms = data.get("processing_time_ms")  # nosemgrep: no-dict-get-with-default
         self.processing_time_ms: float = (

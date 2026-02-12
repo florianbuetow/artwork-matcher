@@ -42,6 +42,12 @@ async def embeddings_client(mock_httpx_client: AsyncMock) -> AsyncGenerator[Embe
         base_url="http://localhost:8001",
         timeout=30.0,
         service_name="embeddings",
+        retry_max_attempts=3,
+        retry_initial_backoff_seconds=0.01,
+        retry_max_backoff_seconds=0.02,
+        retry_jitter_seconds=0.0,
+        circuit_breaker_failure_threshold=3,
+        circuit_breaker_recovery_timeout_seconds=60.0,
     )
     # Replace the internal httpx client with our mock
     client.client = mock_httpx_client
@@ -57,6 +63,12 @@ async def search_client(mock_httpx_client: AsyncMock) -> AsyncGenerator[SearchCl
         base_url="http://localhost:8002",
         timeout=30.0,
         service_name="search",
+        retry_max_attempts=3,
+        retry_initial_backoff_seconds=0.01,
+        retry_max_backoff_seconds=0.02,
+        retry_jitter_seconds=0.0,
+        circuit_breaker_failure_threshold=3,
+        circuit_breaker_recovery_timeout_seconds=60.0,
     )
     # Replace the internal httpx client with our mock
     client.client = mock_httpx_client
@@ -72,6 +84,12 @@ async def geometric_client(mock_httpx_client: AsyncMock) -> AsyncGenerator[Geome
         base_url="http://localhost:8003",
         timeout=30.0,
         service_name="geometric",
+        retry_max_attempts=3,
+        retry_initial_backoff_seconds=0.01,
+        retry_max_backoff_seconds=0.02,
+        retry_jitter_seconds=0.0,
+        circuit_breaker_failure_threshold=3,
+        circuit_breaker_recovery_timeout_seconds=60.0,
     )
     # Replace the internal httpx client with our mock
     client.client = mock_httpx_client
@@ -87,6 +105,12 @@ async def backend_client(mock_httpx_client: AsyncMock) -> AsyncGenerator[Backend
         base_url="http://localhost:8000",
         timeout=30.0,
         service_name="test_backend",
+        retry_max_attempts=3,
+        retry_initial_backoff_seconds=0.01,
+        retry_max_backoff_seconds=0.02,
+        retry_jitter_seconds=0.0,
+        circuit_breaker_failure_threshold=3,
+        circuit_breaker_recovery_timeout_seconds=60.0,
     )
     # Replace the internal httpx client with our mock
     client.client = mock_httpx_client

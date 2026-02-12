@@ -1,57 +1,63 @@
 services:
   embeddings:
-    build: ./services/embeddings
+    build:
+      context: .
+      dockerfile: services/embeddings/Dockerfile
     ports:
-      - "8001:8000"
+      - "8001:8001"
     volumes:
-      - ./data:/data:ro
+      - ./data:/repo/services/embeddings/data:ro
     environment:
-      - CONFIG_PATH=/app/config.yaml
+      - CONFIG_PATH=/repo/services/embeddings/config.yaml
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
 
   search:
-    build: ./services/search
+    build:
+      context: .
+      dockerfile: services/search/Dockerfile
     ports:
-      - "8002:8000"
+      - "8002:8002"
     volumes:
-      - ./data:/data
+      - ./data:/repo/services/search/data
     environment:
-      - CONFIG_PATH=/app/config.yaml
+      - CONFIG_PATH=/repo/services/search/config.yaml
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
       interval: 30s
       timeout: 10s
       retries: 3
 
   geometric:
-    build: ./services/geometric
+    build:
+      context: .
+      dockerfile: services/geometric/Dockerfile
     ports:
-      - "8003:8000"
+      - "8003:8003"
     volumes:
-      - ./data:/data:ro
+      - ./data:/repo/services/geometric/data:ro
     environment:
-      - CONFIG_PATH=/app/config.yaml
+      - CONFIG_PATH=/repo/services/geometric/config.yaml
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
       interval: 30s
       timeout: 10s
       retries: 3
 
   gateway:
-    build: ./services/gateway
+    build:
+      context: .
+      dockerfile: services/gateway/Dockerfile
     ports:
       - "8000:8000"
     volumes:
-      - ./data:/data:ro
+      - ./data:/repo/services/gateway/data:ro
+      - ./services/gateway/config.docker.yaml:/repo/services/gateway/config.yaml:ro
     environment:
-      - CONFIG_PATH=/app/config.yaml
-      - EMBEDDINGS_URL=http://embeddings:8000
-      - SEARCH_URL=http://search:8000
-      - GEOMETRIC_URL=http://geometric:8000
+      - CONFIG_PATH=/repo/services/gateway/config.yaml
     depends_on:
       embeddings:
         condition: service_healthy

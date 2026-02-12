@@ -71,6 +71,9 @@ instance/
 # Sphinx documentation
 docs/_build/
 
+# Plans (working docs, not tracked)
+docs/plans/
+
 # PyBuilder
 .pybuilder/
 target/
@@ -238,5 +241,7 @@ data/pictures/*
 data/index/*
 data/features/*
 data/*.csv
+data/evaluation/
+data/models/
 !data/.gitkeep
 !data/**/.gitkeep

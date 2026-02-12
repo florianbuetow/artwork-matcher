@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 
-WORKDIR /app
+WORKDIR /repo/services/geometric
 
 # Install system dependencies for OpenCV headless
 # libglib2.0-0: GLib (required by OpenCV)
@@ -15,11 +15,12 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 RUN pip install uv
 
-COPY pyproject.toml uv.lock ./
+COPY libs/service-commons/ /repo/libs/service-commons/
+COPY services/geometric/pyproject.toml services/geometric/uv.lock ./
 RUN uv sync --frozen --no-dev
 
-COPY config.yaml .
-COPY src/ src/
+COPY services/geometric/config.yaml .
+COPY services/geometric/src/ src/
 
 EXPOSE 8003
 

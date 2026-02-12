@@ -4,32 +4,31 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from fastapi.responses import JSONResponse
+from service_commons.exceptions import (
+    ServiceError,
+    create_exception_handlers,
+)
+from service_commons.exceptions import (
+    register_exception_handlers as register_common_exception_handlers,
+)
 
 from geometric_service.logging import get_logger
 
 if TYPE_CHECKING:
     from fastapi import FastAPI, Request
+    from fastapi.responses import JSONResponse
+
+__all__ = [
+    "ServiceError",
+    "register_exception_handlers",
+    "service_error_handler",
+    "unhandled_exception_handler",
+]
 
 
-class ServiceError(Exception):
-    """Base exception for service errors."""
-
-    def __init__(
-        self,
-        error: str,
-        message: str,
-        status_code: int,
-        details: dict[str, object] | None,
-    ) -> None:
-        self.error = error
-        self.message = message
-        self.status_code = status_code
-        if details is None:
-            self.details: dict[str, object] = {}
-        else:
-            self.details = details
-        super().__init__(message)
+_base_service_error_handler, _base_unhandled_exception_handler = create_exception_handlers(
+    lambda: get_logger(__name__)
+)
 
 
 async def service_error_handler(
@@ -37,25 +36,7 @@ async def service_error_handler(
     exc: ServiceError,
 ) -> JSONResponse:
     """Handle ServiceError exceptions."""
-    logger = get_logger(__name__)
-    logger.warning(
-        "Service error",
-        extra={
-            "error": exc.error,
-            "error_message": exc.message,
-            "status_code": exc.status_code,
-            "details": exc.details,
-            "path": str(request.url.path),
-        },
-    )
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={
-            "error": exc.error,
-            "message": exc.message,
-            "details": exc.details,
-        },
-    )
+    return await _base_service_error_handler(request, exc)
 
 
 async def unhandled_exception_handler(
@@ -63,29 +44,14 @@ async def unhandled_exception_handler(
     _exc: Exception,
 ) -> JSONResponse:
     """Handle unexpected exceptions."""
-    logger = get_logger(__name__)
-    logger.exception(
-        "Unhandled exception",
-        extra={
-            "path": str(request.url.path),
-            "method": request.method,
-        },
-    )
-    return JSONResponse(
-        status_code=500,
-        content={
-            "error": "internal_error",
-            "message": "An unexpected error occurred",
-            "details": {},
-        },
-    )
+    return await _base_unhandled_exception_handler(request, _exc)
 
 
 def register_exception_handlers(app: FastAPI) -> None:
     """Register all exception handlers on the app."""
-    app.add_exception_handler(
+    register_common_exception_handlers(
+        app,
         ServiceError,
-        # nosemgrep: config.semgrep.python.no-type-ignore
-        service_error_handler,  # type: ignore[arg-type]
+        service_error_handler,
+        unhandled_exception_handler,
     )
-    app.add_exception_handler(Exception, unhandled_exception_handler)

@@ -196,6 +196,12 @@ class IdentifyResponse(BaseModel):
     geometric_skip_reason: str | None = None
     """Reason for skipping geometric verification."""
 
+    degraded: bool = False
+    """Whether response quality is degraded due to backend or data issues."""
+
+    degradation_reason: str | None = None
+    """Machine-readable reason for degraded response quality."""
+
 
 class ObjectSummary(BaseModel):
     """Summary info for object listing."""
