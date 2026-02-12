@@ -18,7 +18,12 @@ router = APIRouter()
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check() -> HealthResponse:
-    """Check service health."""
+    """
+    Check service health.
+
+    Health semantics:
+    - healthy: service can process geometric matching requests
+    """
     state = get_app_state()
     system_time = datetime.now(UTC).strftime("%Y-%m-%d %H:%M")
 

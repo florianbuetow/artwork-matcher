@@ -28,6 +28,11 @@ async def health_check(
     """
     Check service health.
 
+    Health semantics:
+    - healthy: gateway and all critical backends (embeddings/search) are healthy
+    - degraded: critical backends are healthy but optional geometric backend is not healthy
+    - unhealthy: at least one critical backend is not healthy
+
     Returns:
         Health status with optional backend status
     """

@@ -112,3 +112,24 @@ class TestHealthEndpoint:
             assert re.match(pattern, data["system_time"]), (
                 f"Expected format yyyy-mm-dd hh:mm, got {data['system_time']}"
             )
+
+    def test_health_returns_unhealthy_when_model_not_loaded(
+        self,
+        mock_app_state: MagicMock,
+    ) -> None:
+        """Health endpoint returns unhealthy when model state is missing."""
+        mock_app_state.model = None
+
+        with (
+            patch("embeddings_service.app.lifespan"),
+            patch("embeddings_service.routers.health.get_app_state") as mock_state,
+        ):
+            mock_state.return_value = mock_app_state
+            app = create_app()
+            client = TestClient(app, raise_server_exceptions=False)
+
+            response = client.get("/health")
+            data = response.json()
+
+            assert response.status_code == 200
+            assert data["status"] == "unhealthy"
