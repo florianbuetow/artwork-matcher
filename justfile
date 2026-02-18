@@ -31,12 +31,16 @@ help:
     @printf "  \033[0;37mjust docker-logs      \033[0;34m View logs (optionally: just docker-logs <service>)\033[0m\n"
     @printf "  \033[0;37mjust docker-build     \033[0;34m Rebuild all Docker images from scratch\033[0m\n"
     @echo ""
-    @printf "\033[1;33mEvaluation\033[0m\n"
+    @printf "\033[1;33mIngestion\033[0m\n"
     @printf "  \033[0;37mjust download-batch   \033[0;34m Download diverse batch from Rijksmuseum\033[0m\n"
     @printf "  \033[0;37mjust download <args>  \033[0;34m Download with custom options\033[0m\n"
-    @printf "  \033[0;37mjust build-index      \033[0;34m Build FAISS index from object images\033[0m\n"
-    @printf "  \033[0;37mjust evaluate         \033[0;34m Evaluate accuracy against labels.csv\033[0m\n"
-    @printf "  \033[0;37mjust run-evaluation   \033[0;34m Full E2E evaluation pipeline\033[0m\n"
+    @printf "  \033[0;37mjust build-index      \033[0;34m Build FAISS index from downloaded images\033[0m\n"
+    @printf "  \033[0;37mjust delete-index     \033[0;34m Delete the FAISS index\033[0m\n"
+    @echo ""
+    @printf "\033[1;33mEvaluation\033[0m\n"
+    @printf "  \033[0;37mjust build-eval-index \033[0;34m Build FAISS index from object images\033[0m\n"
+    @printf "  \033[0;37mjust evaluate         \033[0;34m Full E2E evaluation pipeline (local)\033[0m\n"
+    @printf "  \033[0;37mjust docker-evaluate  \033[0;34m Full E2E evaluation pipeline (Docker)\033[0m\n"
     @echo ""
     @printf "\033[1;33mCI & Code Quality\033[0m\n"
     @printf "  \033[0;37mjust test-all         \033[0;34m Run tests for all services\033[0m\n"
@@ -247,20 +251,51 @@ download *ARGS:
     cd tools && just download {{ ARGS }}
     @echo ""
 
-# Build the FAISS index from object images
+# --- Ingestion ---
+
+# Build FAISS index from downloaded images (replaces existing index)
 build-index:
     @echo ""
-    cd tools && uv run python build_index.py --objects ../data/evaluation/objects --embeddings-url http://localhost:8001 --search-url http://localhost:8002
+    @printf "\033[0;33mThis will replace the existing FAISS index with downloaded images.\033[0m\n"
+    @printf "Continue? [y/N] " && read ans && [ "$ans" = "y" ] || (printf "\033[0;31mAborted.\033[0m\n" && exit 1)
+    cd tools && uv run python build_index.py --objects ../data/downloads/images --embeddings-url http://localhost:8001 --search-url http://localhost:8002 --force
     @echo ""
 
-# Evaluate accuracy against labels.csv
-evaluate:
+# Delete the FAISS index
+delete-index:
+    #!/usr/bin/env bash
+    echo ""
+    printf "\033[0;34m=== Deleting FAISS Index ===\033[0m\n"
+    if curl -sf http://localhost:8002/health > /dev/null 2>&1; then
+        printf "Search service is running — clearing in-memory index via API...\n"
+        if curl -sf -X DELETE http://localhost:8002/index > /dev/null 2>&1; then
+            printf "\033[0;32m✓ In-memory index cleared\033[0m\n"
+        else
+            printf "\033[0;33m⚠ Failed to clear in-memory index via API\033[0m\n"
+        fi
+    fi
+    rm -f data/index/faiss.index data/index/metadata.json
+    printf "\033[0;32m✓ FAISS index deleted from disk\033[0m\n"
+    echo ""
+
+# --- Evaluation ---
+
+# Build FAISS index from evaluation object images (replaces existing index)
+build-eval-index:
+    @echo ""
+    @printf "\033[0;33mThis will replace the existing FAISS index with evaluation data.\033[0m\n"
+    @printf "Continue? [y/N] " && read ans && [ "$ans" = "y" ] || (printf "\033[0;31mAborted.\033[0m\n" && exit 1)
+    cd tools && uv run python build_index.py --objects ../data/evaluation/objects --embeddings-url http://localhost:8001 --search-url http://localhost:8002 --force
+    @echo ""
+
+# Full E2E evaluation pipeline (local: builds index, evaluates)
+evaluate: build-eval-index
     @echo ""
     cd tools && uv run python evaluate.py --testdata ../data/evaluation --output ../reports/evaluation --gateway-url http://localhost:8000 --k 10 --threshold 0.0
     @echo ""
 
 # Run full E2E evaluation (starts Docker, builds index, evaluates)
-run-evaluation:
+docker-evaluate:
     @echo ""
     cd tools && uv run python run_evaluation.py --testdata ../data/evaluation --output ../reports/evaluation --gateway-url http://localhost:8000 --embeddings-url http://localhost:8001 --search-url http://localhost:8002 --geometric-url http://localhost:8003 --k 10 --threshold 0.0
     @echo ""

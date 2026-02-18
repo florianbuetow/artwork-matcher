@@ -48,6 +48,9 @@ uv sync --all-extras
 ### Root Justfile Commands
 - `just` or `just help` - Show all available commands
 - `just init-all` - Initialize all service environments
+- `just start-all` - Start all services in background
+- `just stop-all` - Stop all locally running services
+- `just status` - Check health status of all services
 - `just destroy-all` - Remove all virtual environments
 - `just docker-up` - Start all services (Docker)
 - `just docker-up-dev` - Start with hot reload
@@ -57,8 +60,12 @@ uv sync --all-extras
 - `just test-all` - Run all tests
 - `just ci-all` - Run all CI checks (verbose)
 - `just ci-all-quiet` - Run all CI checks (quiet)
-- `just build-index` - Build FAISS index
-- `just evaluate` - Run accuracy evaluation
+- `just download-batch` - Download diverse batch from Rijksmuseum
+- `just build-index` - Build FAISS index from downloaded images
+- `just delete-index` - Delete the FAISS index
+- `just build-eval-index` - Build FAISS index from evaluation images
+- `just evaluate` - Full E2E evaluation pipeline (local)
+- `just docker-evaluate` - Full E2E evaluation pipeline (Docker)
 
 ### Per-Service Justfile Commands
 Run from within `services/<name>/`:
@@ -113,20 +120,31 @@ services/<service_name>/
 ### Data Directory
 ```
 data/
-├── objects/       # Museum reference images (input, read-only)
-├── pictures/      # Visitor test photos (input, read-only)
-├── index/         # Generated FAISS index (output)
-├── features/      # Pre-computed features (output, optional)
-└── labels.csv     # Ground truth for evaluation (input)
+├── downloads/         # Downloaded Rijksmuseum data (output)
+├── evaluation/        # Evaluation dataset
+│   ├── objects/       # Reference images for evaluation
+│   ├── pictures/      # Visitor test photos for evaluation
+│   └── labels.csv     # Ground truth mappings
+├── objects/           # Museum reference images (production)
+├── pictures/          # Visitor test photos (production)
+├── index/             # Generated FAISS index (output)
+├── models/            # Cached model weights
+└── features/          # Pre-computed features (output, optional)
 ```
 
 ### Tools Directory
 ```
 tools/
-├── justfile           # Tools task runner
-├── pyproject.toml     # Tools dependencies
-├── build_index.py     # Index building script
-└── evaluate.py        # Accuracy evaluation script
+├── justfile               # Tools task runner
+├── pyproject.toml         # Tools dependencies
+├── build_index.py         # Index building script
+├── evaluate.py            # Accuracy evaluation script
+├── run_evaluation.py      # Full E2E evaluation pipeline
+├── verify_evaluation.py   # Verify evaluation pipeline wiring
+├── evaluation/            # Evaluation client, metrics, models
+└── downloader/            # Rijksmuseum data downloader
+    ├── config.yaml        # Download configuration
+    └── download_data.py
 ```
 
 ## Configuration Rules

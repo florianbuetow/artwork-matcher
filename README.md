@@ -33,35 +33,27 @@ This mirrors production systems like Smartify and Google Arts & Culture.
 
 ## Quick Start
 
-1. **Download the data**
-
-   > **🚧 WORK IN PROGRESS** — Data download instructions coming soon.
-
-   - `objects/` → `data/objects/`
-   - `pictures/` → `data/pictures/`
-   - `labels.csv` → `data/labels.csv`
+1. **Download evaluation data:**
+   ```bash
+   just download-batch
+   ```
 
 2. **Initialize and start services:**
    ```bash
    just init-all
-   just docker-up
+   just start-all
    ```
 
-3. **Build the search index:**
+3. **Build the search index and evaluate:**
    ```bash
-   just build-index
+   just evaluate
    ```
 
 4. **Test identification:**
    ```bash
    curl -X POST http://localhost:8000/identify \
      -H "Content-Type: application/json" \
-     -d '{"image": "'$(base64 -i data/pictures/001.jpg | tr -d '\n')'"}'
-   ```
-
-5. **Evaluate accuracy:**
-   ```bash
-   just evaluate
+     -d '{"image": "'$(base64 -i data/evaluation/pictures/bk_24.jpg | tr -d '\n')'"}'
    ```
 
 ## API Endpoints
@@ -171,11 +163,14 @@ From within a service directory (e.g., `cd services/embeddings`):
 ### Local Development (No Docker)
 
 - `just init-all` - Initialize all service environments
+- `just start-all` - Start all services in background
+- `just start-embeddings` - Start embeddings service locally
+- `just start-search` - Start search service locally
+- `just start-geometric` - Start geometric service locally
+- `just start-gateway` - Start gateway service locally
+- `just stop-all` - Stop all locally running services
+- `just status` - Check health status of all services
 - `just destroy-all` - Remove all virtual environments
-- `just run-embeddings` - Run embeddings service locally
-- `just run-search` - Run search service locally
-- `just run-geometric` - Run geometric service locally
-- `just run-gateway` - Run gateway service locally
 
 Or from within a service directory:
 ```bash
@@ -209,10 +204,18 @@ Run these from the root as `just <command> <service>` or within a service direct
 - `code-audit` - Vulnerability scan
 - `code-semgrep` - Static analysis
 
-### Data Pipeline
+### Ingestion
 
-- `just build-index` - Build FAISS index from object images
-- `just evaluate` - Evaluate accuracy against labels.csv
+- `just download-batch` - Download diverse batch from Rijksmuseum
+- `just download <args>` - Download with custom options
+- `just build-index` - Build FAISS index from downloaded images
+- `just delete-index` - Delete the FAISS index
+
+### Evaluation
+
+- `just build-eval-index` - Build FAISS index from evaluation object images
+- `just evaluate` - Full E2E evaluation pipeline (local)
+- `just docker-evaluate` - Full E2E evaluation pipeline (Docker)
 
 ## Repository Structure
 
@@ -251,18 +254,29 @@ artwork-matcher/
 │   ├── justfile            # Tools task runner
 │   ├── pyproject.toml      # Tools dependencies
 │   ├── build_index.py      # Build FAISS index from object images
-│   └── evaluate.py         # Evaluate accuracy against labels.csv
+│   ├── evaluate.py         # Evaluate accuracy against labels.csv
+│   ├── run_evaluation.py   # Full E2E evaluation pipeline
+│   ├── verify_evaluation.py # Verify evaluation pipeline wiring
+│   ├── evaluation/         # Evaluation client, metrics, models
+│   └── downloader/         # Rijksmuseum data downloader
+│       ├── config.yaml     # Download configuration
+│       └── download_data.py
 │
 ├── tests/                  # Integration tests (cross-service)
 │   ├── conftest.py
 │   └── test_integration.py
 │
 ├── data/
-│   ├── objects/            # Museum object reference images
-│   ├── pictures/           # Visitor test photos
-│   ├── index/              # Generated FAISS index files
-│   ├── features/           # Pre-computed ORB features (optional)
-│   └── labels.csv          # Ground truth mappings
+│   ├── downloads/          # Downloaded Rijksmuseum data (output)
+│   ├── evaluation/         # Evaluation dataset
+│   │   ├── objects/        # Reference images for evaluation
+│   │   ├── pictures/       # Visitor test photos for evaluation
+│   │   └── labels.csv      # Ground truth mappings
+│   ├── objects/            # Museum object reference images (production)
+│   ├── pictures/           # Visitor test photos (production)
+│   ├── index/              # Generated FAISS index files (output)
+│   ├── models/             # Cached model weights
+│   └── features/           # Pre-computed ORB features (optional)
 │
 └── config/
     ├── semgrep/            # Custom static analysis rules
