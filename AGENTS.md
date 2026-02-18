@@ -1,102 +1,90 @@
-# Development Rules for artwork-matcher
+# Artwork Matcher - AI Agent Instructions
 
-This file provides guidance to AI agents and AI-assisted development tools when working with this project. This includes Claude Code, Cursor IDE, GitHub Copilot, Windsurf, and any other AI coding assistants.
+## Project Overview
 
-## General Coding Principles
-- **Never assume any default values anywhere**
-- Always be explicit about values, paths, and configurations
-- If a value is not provided, handle it explicitly (raise error, use null, or prompt for input)
+Artwork Matcher is a Python microservices project that matches visitor photos of artworks to a museum's reference collection. It uses DINOv2 embeddings, FAISS vector search, and ORB+RANSAC geometric verification, orchestrated through a FastAPI gateway.
 
-## Git Commit Guidelines
+## Build & Run
 
-**IMPORTANT:** When creating git commits in this repository:
-- **NEVER include AI attribution in commit messages**
-- **NEVER add "Generated with [AI tool name]" or similar phrases**
-- **NEVER add "Co-Authored-By: [AI name]" or similar attribution**
-- **NEVER run `git add -A` or `git add .` - always stage files explicitly**
-- Keep commit messages professional and focused on the changes made
-- Commit messages should describe what changed and why, without mentioning AI assistance
-- **ALWAYS run `git push` after creating a commit to push changes to the remote repository**
-
-## Testing
-- After **every change** to the code, the tests must be executed
-- Always verify the program runs correctly with `just run` after modifications
-
-## Python Execution Rules
-
-### Execution
-- Python code must be executed **only** via `uv run ...`
-  - Example: `uv run uvicorn embeddings_service.app:app --reload`
-  - **Never** use: `python`, `python3`, or direct script execution
-
-### Dependencies
-- Virtual environments are created via `uv sync`
-- Each service has its **own** virtual environment in `services/<name>/.venv/`
-- **Never** use: `pip install`, `python -m pip`, or `uv pip`
-- All dependencies declared in service's `pyproject.toml`
-
-### Adding a Dependency
 ```bash
-# 1. Edit pyproject.toml to add the dependency
-# 2. Sync the environment
-cd services/embeddings
-uv sync --all-extras
+just help             # Show all available commands
+just init-all         # Initialize all service environments
+just start-all        # Start all services in background
+just stop-all         # Stop all locally running services
+just status           # Check health status of all services
+just test-all         # Run all tests
+just ci-all           # Run all CI checks (verbose)
+just ci-all-quiet     # Run all CI checks (quiet)
+just destroy-all      # Remove all virtual environments
 ```
 
-## Justfile Rules
+### Docker
 
-### Root Justfile Commands
-- `just` or `just help` - Show all available commands
-- `just init-all` - Initialize all service environments
-- `just start-all` - Start all services in background
-- `just stop-all` - Stop all locally running services
-- `just status` - Check health status of all services
-- `just destroy-all` - Remove all virtual environments
-- `just docker-up` - Start all services (Docker)
-- `just docker-up-dev` - Start with hot reload
-- `just docker-down` - Stop all services
-- `just docker-logs [service]` - View logs
-- `just docker-build` - Build all Docker images
-- `just test-all` - Run all tests
-- `just ci-all` - Run all CI checks (verbose)
-- `just ci-all-quiet` - Run all CI checks (quiet)
-- `just download-batch` - Download diverse batch from Rijksmuseum
-- `just build-index` - Build FAISS index from downloaded images
-- `just delete-index` - Delete the FAISS index
-- `just build-eval-index` - Build FAISS index from evaluation images
-- `just evaluate` - Full E2E evaluation pipeline (local)
-- `just docker-evaluate` - Full E2E evaluation pipeline (Docker)
+```bash
+just docker-up        # Start all services (Docker)
+just docker-up-dev    # Start with hot reload
+just docker-down      # Stop all services
+just docker-logs [service]  # View logs
+just docker-build     # Build all Docker images
+```
 
-### Per-Service Justfile Commands
+### Data & Evaluation
+
+```bash
+just download-batch   # Download diverse batch from Rijksmuseum
+just build-index      # Build FAISS index from downloaded images
+just delete-index     # Delete the FAISS index
+just build-eval-index # Build FAISS index from evaluation images
+just evaluate         # Full E2E evaluation pipeline (local)
+just docker-evaluate  # Full E2E evaluation pipeline (Docker)
+```
+
+### Per-Service Commands
+
 Run from within `services/<name>/`:
 
-- `just init` - Initialize service environment
-- `just destroy` - Remove virtual environment
-- `just run` - Run service locally with hot reload
-- `just test` - Run unit tests
-- `just ci` - Run all CI checks (verbose)
-- `just ci-quiet` - Run all CI checks (quiet)
-- `just code-format` - Auto-fix formatting
-- `just code-style` - Check style (read-only)
-- `just code-typecheck` - Run mypy
-- `just code-lspchecks` - Run pyright (strict)
-- `just code-security` - Run bandit
-- `just code-deptry` - Check dependencies
-- `just code-spell` - Check spelling
-- `just code-semgrep` - Run custom rules
-- `just code-audit` - Vulnerability scan
+```bash
+just init             # Initialize service environment
+just destroy          # Remove virtual environment
+just run              # Run service locally with hot reload
+just test             # Run unit tests
+just ci               # Run all CI checks (verbose)
+just ci-quiet         # Run all CI checks (quiet)
+just code-format      # Auto-fix formatting
+just code-style       # Check style (read-only)
+just code-typecheck   # Run mypy
+just code-lspchecks   # Run pyright (strict)
+just code-security    # Run bandit
+just code-deptry      # Check dependencies
+just code-spell       # Check spelling
+just code-semgrep     # Run custom rules
+just code-audit       # Vulnerability scan
+```
 
-## Project Structure
+## Testing
 
-This is a **microservices** project with four services. Each service is self-contained with its own dependencies, tests, and configuration.
+- After **every change** to the code, the tests must be executed
+- Always verify the program runs correctly with `just run` after modifications
+- Always run `just test-all` or `just ci-all-quiet` to verify changes before claiming they work
+- **Tests are acceptance tests — do NOT modify existing test files.** Add new test files to cover new or additional requirements instead.
 
-### Root Level
-- `justfile` - Root task runner (orchestrates all services)
-- `docker-compose.yml` - Production deployment
-- `docker-compose.dev.yml` - Development with hot reload
-- **Never create Python files in the project root**
+## Architecture
 
-### Services Structure
+```
+services/
+  gateway/            Public API, orchestration (port 8000)
+  embeddings/         DINOv2 embedding extraction (port 8001)
+  search/             FAISS vector search (port 8002)
+  geometric/          ORB + RANSAC verification (port 8003)
+tools/
+  build_index.py      Index building script
+  evaluate.py         Accuracy evaluation script
+  run_evaluation.py   Full E2E evaluation pipeline
+  downloader/         Rijksmuseum data downloader
+```
+
+### Service Layout
+
 Each service in `services/` follows this layout:
 
 ```
@@ -117,53 +105,44 @@ services/<service_name>/
     └── test_*.py
 ```
 
-### Data Directory
-```
-data/
-├── downloads/         # Downloaded Rijksmuseum data (output)
-├── evaluation/        # Evaluation dataset
-│   ├── objects/       # Reference images for evaluation
-│   ├── pictures/      # Visitor test photos for evaluation
-│   └── labels.csv     # Ground truth mappings
-├── objects/           # Museum reference images (production)
-├── pictures/          # Visitor test photos (production)
-├── index/             # Generated FAISS index (output)
-├── models/            # Cached model weights
-└── features/          # Pre-computed features (output, optional)
-```
+### Key design principles
 
-### Tools Directory
-```
-tools/
-├── justfile               # Tools task runner
-├── pyproject.toml         # Tools dependencies
-├── build_index.py         # Index building script
-├── evaluate.py            # Accuracy evaluation script
-├── run_evaluation.py      # Full E2E evaluation pipeline
-├── verify_evaluation.py   # Verify evaluation pipeline wiring
-├── evaluation/            # Evaluation client, metrics, models
-└── downloader/            # Rijksmuseum data downloader
-    ├── config.yaml        # Download configuration
-    └── download_data.py
-```
+- Services communicate via HTTP/JSON using `httpx` for async clients
+- All endpoints follow the uniform API structure
+- Health checks: `GET /health` returns `{"status": "healthy"}`
+- Service info: `GET /info` returns configuration and version
+- All services return errors in a consistent JSON format with `error`, `message`, and `details` fields
 
-## Configuration Rules
+## Git Rules
 
-### YAML + Pydantic Pattern
-Every service uses YAML configuration files validated by Pydantic Settings:
+- **Never use `git -C <path>`** to operate on other worktrees. Always use the full `git` command from the current working directory.
 
-1. **`config.yaml`** - Human-readable defaults with comments
-2. **`config.py`** - Pydantic models that validate and load the YAML
-3. **Environment overrides** - `SERVICE__SECTION__KEY=value` pattern
+## Code Style
 
-### Configuration Principles
+### General
+
+- **Never assume any default values anywhere** — always be explicit about values, paths, and configurations
+- If a value is not provided, handle it explicitly (raise error, use null, or prompt for input)
+- **Never create Python files in the project root**
+
+### Python Execution
+
+- Python code must be executed **only** via `uv run ...`
+  - Example: `uv run uvicorn embeddings_service.app:app --reload`
+  - **Never** use: `python`, `python3`, or direct script execution
+- Virtual environments are created via `uv sync`
+- Each service has its **own** virtual environment in `services/<name>/.venv/`
+- **Never** use: `pip install`, `python -m pip`, or `uv pip`
+- All dependencies declared in service's `pyproject.toml`
+
+### Configuration
+
 - **Never hardcode configuration values** in application code
 - **Never use default parameter values** for configurable settings
 - **All config must come from config.yaml** or environment variables
-- **Fail fast** - Invalid configuration crashes at startup, not runtime
-- **Type-safe access** - Use `settings.section.key`, never `config["section"]["key"]`
+- **Fail fast** — invalid configuration crashes at startup, not runtime
+- **Type-safe access** — use `settings.section.key`, never `config["section"]["key"]`
 
-### Example Pattern
 ```python
 # WRONG - hardcoded default
 def create_index(dimension: int = 768):
@@ -178,78 +157,18 @@ from embeddings_service.config import settings
 def create_index(dimension: int):  # No default
     ...
 
-# Called with config value
 create_index(dimension=settings.model.embedding_dimension)
 ```
 
-### Config File Location
-- Default: `config.yaml` in service root
-- Override via: `CONFIG_PATH` environment variable
-- Docker: Mounted or baked into image
+### Error Handling
 
-## Microservices Development
-
-### Working on a Single Service
-```bash
-# Navigate to service
-cd services/embeddings
-
-# Initialize environment
-just init
-
-# Run locally (with hot reload)
-just run
-
-# Run tests
-just test
-
-# Run all CI checks
-just ci
-```
-
-### Service Ports
-| Service | Port | Purpose |
-|---------|------|---------|
-| Gateway | 8000 | Public API, orchestration |
-| Embeddings | 8001 | DINOv2 embedding extraction |
-| Search | 8002 | FAISS vector search |
-| Geometric | 8003 | ORB + RANSAC verification |
-
-### Adding Dependencies
-```bash
-# In the service directory
-cd services/embeddings
-
-# Add to pyproject.toml, then:
-uv sync --all-extras
-```
-
-### Cross-Service Communication
-- Services communicate via HTTP/JSON
-- Use `httpx` for async HTTP clients
-- All endpoints follow the uniform API structure (see API specs)
-- Health checks: `GET /health` returns `{"status": "healthy"}`
-- Service info: `GET /info` returns configuration and version
-
-## Error Handling
-
-### General Principles
 - Scripts should continue processing other items even if one fails
 - Failed/invalid outputs should be handled gracefully
 - Scripts should track and report success/failure counts
 - Exit with code 1 if any items failed, 0 if all succeeded
 
-### Service Error Responses
-All services return errors in a consistent JSON format:
-```json
-{
-  "error": "error_code",
-  "message": "Human-readable description",
-  "details": {}
-}
-```
-
 ### HTTP Status Codes
+
 - `400` - Bad request (invalid input)
 - `404` - Resource not found
 - `422` - Validation error (valid JSON, invalid content)
@@ -258,19 +177,56 @@ All services return errors in a consistent JSON format:
 - `503` - Service unavailable
 - `504` - Backend timeout (Gateway only)
 
-## Optimization
+## Files to never edit directly
 
-### Index Building (`build_index.py`)
-- Check if index already exists before rebuilding
-- Allow `--force` flag to rebuild anyway
-- Report count of objects indexed
+- `data/index/` - generated FAISS index (output)
+- `data/features/` - pre-computed features (output)
+- `data/downloads/` - downloaded Rijksmuseum data (output)
+- `data/models/` - cached model weights
+- `reports/` - generated test artifacts
 
-### Evaluation (`evaluate.py`)
-- Cache embeddings if running multiple evaluations
-- Report per-image timing for performance analysis
+## Common workflows
 
-### General
-- **Skip processing if output already exists** - Don't reprocess unnecessarily
-- Check if output file exists before starting expensive operations
-- Track skipped items separately in summary reports
-- Allow users to force reprocessing via flags or by deleting output files
+### Working on a single service
+
+1. Navigate to service: `cd services/<name>`
+2. Initialize environment: `just init`
+3. Run locally with hot reload: `just run`
+4. Run tests: `just test`
+5. Run all CI checks: `just ci`
+
+### Adding a dependency
+
+1. Edit `pyproject.toml` in the service directory to add the dependency
+2. Run `uv sync --all-extras` from the service directory
+
+### Fixing a bug
+
+1. Write a failing test first
+2. Verify it fails with `just test-all`
+3. Implement the fix
+4. Verify it passes with `just test-all`
+
+## Delegating Work
+
+See [DELEGATE.md](DELEGATE.md) for instructions on delegating work to the Codex agent via tmux.
+
+## Ticket Management
+
+Every feature request or bug fix must have a corresponding test ticket that blocks it. The test ticket describes how to write a failing test that confirms the feature is not yet implemented or the bug still exists. The implementation ticket depends on the test ticket — no implementation work begins until the failing test is written and verified.
+
+### Workflow
+
+1. Create a test ticket: "Write acceptance tests for: \<feature/bug summary\>"
+2. Create the implementation ticket: "\<feature/bug summary\>"
+3. Add a dependency: implementation ticket depends on test ticket (`bd dep add <impl> <test>`)
+4. Write the failing test first, verify it fails
+5. Close the test ticket
+6. Implement the feature/fix, verify the test passes
+7. Close the implementation ticket
+
+### Rules
+
+- **No implementation without a failing test** — every implementation ticket must be blocked by a test ticket
+- **Tests must fail first** — a test ticket is only closed once the test exists and fails against current code
+- **Test describes the "what", not the "how"** — test tickets describe observable behavior to assert, not implementation details
