@@ -27,10 +27,13 @@ This mirrors production systems like Smartify and Google Arts & Culture.
 
 ## Prerequisites
 
-- **Python 3.12+** - Programming language
-- **uv** - Python package manager ([installation guide](https://docs.astral.sh/uv/getting-started/installation/))
 - **just** - Command runner ([installation guide](https://github.com/casey/just#installation))
+- **uv** - Python package manager ([installation guide](https://docs.astral.sh/uv/getting-started/installation/))
+- **Python 3.12+** - Programming language
 - **Docker** - Container runtime ([installation guide](https://docs.docker.com/get-docker/))
+- **curl** - HTTP client (pre-installed on most systems)
+- **jq** - JSON processor ([installation guide](https://jqlang.github.io/jq/download/))
+- **lsof** - Process inspector (pre-installed on most systems)
 
 ## Quick Start
 
@@ -81,6 +84,14 @@ Index the evaluation dataset and run the end-to-end accuracy and performance tes
 
 ```bash
 just evaluate
+```
+
+### 5. Open the web application
+
+Open the gateway web UI in your browser at [http://localhost:8000](http://localhost:8000), or run:
+
+```bash
+just demo
 ```
 
 ## API Endpoints
@@ -336,10 +347,10 @@ artwork-matcher/
 
 See [AGENTS.md](AGENTS.md) for detailed development guidelines including:
 - Python execution rules (use `uv run` exclusively)
-- Git commit guidelines (no AI attribution)
+- Git commit guidelines
 - Testing requirements
 - Project structure conventions
 
 ## License
 
-MIT License - See LICENSE file for details.
+MIT License - See [LICENSE](LICENSE) for details.
