@@ -102,27 +102,27 @@ Response:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         Client                                   │
-│                    (Browser / curl / App)                        │
+│                         Client                                  │
+│                    (Browser / curl / App)                       │
 └─────────────────────────┬───────────────────────────────────────┘
                           │
                           ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Gateway Service (:8000)                       │
-│                                                                  │
+│                    Gateway Service (:8000)                      │
+│                                                                 │
 │   POST /identify ──────────────────────────────────────────┐    │
-│                                                             │    │
-│   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐     │    │
-│   │ Embeddings  │   │   Search    │   │  Geometric  │     │    │
-│   │   :8001     │──▶│    :8002    │──▶│    :8003    │     │    │
-│   │  (DINOv2)   │   │   (FAISS)   │   │ (ORB+RANSAC)│     │    │
-│   └─────────────┘   └──────┬──────┘   └─────────────┘     │    │
-│                             │                               │    │
-│                      ┌──────┴──────┐                        │    │
-│                      │   Storage   │                        │    │
-│                      │    :8004    │                        │    │
-│                      └─────────────┘                        │    │
-│                                                             │    │
+│                                                            │    │
+│   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐      │    │
+│   │ Embeddings  │   │   Search    │   │  Geometric  │      │    │
+│   │   :8001     │──▶│    :8002    │──▶│    :8003    │      │    │
+│   │  (DINOv2)   │   │   (FAISS)   │   │ (ORB+RANSAC)│      │    │
+│   └─────────────┘   └──────┬──────┘   └─────────────┘      │    │
+│                             │                              │    │
+│                      ┌──────┴──────┐                       │    │
+│                      │   Storage   │                       │    │
+│                      │    :8004    │                       │    │
+│                      └─────────────┘                       │    │
+│                                                            │    │
 │   ◀─────────────────── Best Match ─────────────────────────┘    │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -148,6 +148,12 @@ Response:
 | [Geometric API Spec](docs/api/geometric_service_api_spec.md) | ORB + RANSAC verification |
 | [Uniform API Structure](docs/api/uniform_api_structure.md) | Common conventions across all services |
 | [Confidence Scoring Penalties](docs/decisions/confidence-scoring-penalties.md) | Decision record and tuning plan for confidence scoring |
+| [Performance Testing Methodology](docs/performance/testing-methodology.md) | Strategy for service benchmarks and end-to-end validation |
+| [Evaluation Report](reports/evaluation/evaluation_report.md) | E2E accuracy evaluation results against test dataset |
+| [Embeddings Performance](reports/performance/embedding_service_performance.md) | Embeddings service latency and throughput benchmarks |
+| [Search Performance](reports/performance/search_service_performance.md) | Search service latency and throughput benchmarks |
+| [Geometric Performance](reports/performance/geometric_service_performance.md) | Geometric service latency and throughput benchmarks |
+| [Gateway Performance](reports/performance/gateway_service_performance.md) | Gateway service latency and throughput benchmarks |
 
 ## Development
 
