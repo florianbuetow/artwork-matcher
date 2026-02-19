@@ -2,7 +2,9 @@
 
 ## Overview
 
-The Gateway Service is the **public-facing API** that orchestrates the artwork identification pipeline. It coordinates requests across the internal services (Embeddings, Search, Geometric) and presents a unified interface to clients.
+The Gateway Service is the **public-facing API** that orchestrates the artwork identification
+pipeline. It coordinates requests across the internal services (Embeddings, Search, Geometric,
+Storage) and presents a unified interface to clients.
 
 **Service Identity:**
 - **Name:** gateway
@@ -39,10 +41,10 @@ The Gateway Service is the **public-facing API** that orchestrates the artwork i
 │                             └─────────────────────────────────────────┘     │
 │                                                                              │
 │    Internal Service Calls:                                                   │
-│    ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                        │
-│    │ Embeddings  │  │   Search    │  │  Geometric  │                        │
-│    │   :8001     │  │    :8002    │  │    :8003    │                        │
-│    └─────────────┘  └─────────────┘  └─────────────┘                        │
+│    ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐       │
+│    │ Embeddings  │  │   Search    │  │  Geometric  │  │   Storage   │       │
+│    │   :8001     │  │    :8002    │  │    :8003    │  │    :8004    │       │
+│    └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘       │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -142,6 +144,7 @@ Final ranking:           #1: 0.92 (67 inliers) ← Best match
 |-----------------|------------------|
 | Embeddings service down | Return 502 with clear message |
 | Search service down | Return 502 with clear message |
+| Storage service down | Degrade gracefully (skip geometric verification paths that need reference images) |
 | Geometric service down | Skip verification, return embedding-only results |
 | Search returns empty | Return 200 with "no match found" |
 | Geometric verification fails | Return match based on embedding only |
@@ -227,7 +230,8 @@ Health check that verifies gateway and optionally backend connectivity.
   "backends": {
     "embeddings": "healthy",
     "search": "healthy",
-    "geometric": "healthy"
+    "geometric": "healthy",
+    "storage": "healthy"
   }
 }
 ```
@@ -237,7 +241,7 @@ Health check that verifies gateway and optionally backend connectivity.
 | Condition | Gateway Status | Note |
 |-----------|----------------|------|
 | All backends healthy | `healthy` | Full functionality |
-| Geometric unavailable | `degraded` | Can still identify (no verification) |
+| Geometric or Storage unavailable | `degraded` | Can still identify (reduced verification quality) |
 | Embeddings OR Search unavailable | `unhealthy` | Cannot process requests |
 
 **Query Parameter:**
@@ -282,6 +286,11 @@ Returns gateway configuration and backend status.
       "url": "http://localhost:8003",
       "status": "healthy",
       "algorithm": "ORB+RANSAC"
+    },
+    "storage": {
+      "url": "http://localhost:8004",
+      "status": "healthy",
+      "content_type": "application/octet-stream"
     }
   }
 }
@@ -625,25 +634,25 @@ See [CORS Implementation Guide](./cors_implementation_guide.md) for details.
 ```yaml
 # config.yaml
 backends:
-  embeddings:
-    url: "http://localhost:8001"
-    timeout_seconds: 25
-    health_check_interval: 30
-  search:
-    url: "http://localhost:8002"
-    timeout_seconds: 8
-    health_check_interval: 30
-  geometric:
-    url: "http://localhost:8003"
-    timeout_seconds: 25
-    health_check_interval: 30
+  embeddings_url: "http://localhost:8001"
+  search_url: "http://localhost:8002"
+  geometric_url: "http://localhost:8003"
+  storage_url: "http://localhost:8004"
+  timeout_seconds: 30.0
+  retry:
+    max_attempts: 3
+    initial_backoff_seconds: 0.1
+    max_backoff_seconds: 1.0
+    jitter_seconds: 0.05
+  circuit_breaker:
+    failure_threshold: 5
+    recovery_timeout_seconds: 15.0
 
 pipeline:
   search_k: 5                    # Candidates to retrieve
-  similarity_threshold: 0.7      # Minimum embedding similarity
+  similarity_threshold: 0.0      # Minimum embedding similarity
   geometric_verification: true   # Enable geometric stage
-  confidence_threshold: 0.6      # Minimum confidence to return match
-  fallback_on_geometric_failure: true  # Use embedding-only if geometric fails
+  confidence_threshold: 0.0      # Minimum confidence to return match
 
 server:
   host: "0.0.0.0"
@@ -652,16 +661,16 @@ server:
   cors_origins: ["*"]
 
 data:
-  objects_metadata_path: "/data/objects/metadata.json"
-  objects_images_path: "/data/objects"
+  labels_path: "./data/labels.csv"
 ```
 
 ### Environment Variable Overrides
 
 ```bash
-GATEWAY__BACKENDS__EMBEDDINGS__URL=http://embeddings:8001
-GATEWAY__BACKENDS__SEARCH__URL=http://search:8002
-GATEWAY__BACKENDS__GEOMETRIC__URL=http://geometric:8003
+GATEWAY__BACKENDS__EMBEDDINGS_URL=http://embeddings:8001
+GATEWAY__BACKENDS__SEARCH_URL=http://search:8002
+GATEWAY__BACKENDS__GEOMETRIC_URL=http://geometric:8003
+GATEWAY__BACKENDS__STORAGE_URL=http://storage:8004
 GATEWAY__PIPELINE__SEARCH_K=10
 GATEWAY__PIPELINE__GEOMETRIC_VERIFICATION=false
 ```
@@ -1053,6 +1062,8 @@ components:
             search:
               type: string
             geometric:
+              type: string
+            storage:
               type: string
 
     InfoResponse:
