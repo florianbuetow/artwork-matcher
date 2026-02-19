@@ -226,6 +226,7 @@ services/*/__pycache__/
 services/*/.pytest_cache/
 services/*/.mypy_cache/
 services/*/.ruff_cache/
+services/storage/data/
 
 # Tools
 tools/.venv/
