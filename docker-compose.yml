@@ -47,6 +47,22 @@ services:
       timeout: 10s
       retries: 3
 
+  storage:
+    build:
+      context: .
+      dockerfile: services/storage/Dockerfile
+    ports:
+      - "8004:8004"
+    volumes:
+      - ./data:/repo/services/storage/data
+    environment:
+      - CONFIG_PATH=/repo/services/storage/config.yaml
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   gateway:
     build:
       context: .

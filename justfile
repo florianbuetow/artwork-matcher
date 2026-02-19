@@ -19,11 +19,13 @@ help:
     @printf "  \033[0;37mjust start-embeddings \033[0;34m Start embeddings service locally\033[0m\n"
     @printf "  \033[0;37mjust start-search     \033[0;34m Start search service locally\033[0m\n"
     @printf "  \033[0;37mjust start-geometric  \033[0;34m Start geometric service locally\033[0m\n"
+    @printf "  \033[0;37mjust start-storage    \033[0;34m Start storage service locally\033[0m\n"
     @printf "  \033[0;37mjust start-gateway    \033[0;34m Start gateway service locally\033[0m\n"
     @printf "  \033[0;37mjust stop-all         \033[0;34m Stop all locally running services\033[0m\n"
     @printf "  \033[0;37mjust stop-embeddings  \033[0;34m Stop embeddings service\033[0m\n"
     @printf "  \033[0;37mjust stop-search      \033[0;34m Stop search service\033[0m\n"
     @printf "  \033[0;37mjust stop-geometric   \033[0;34m Stop geometric service\033[0m\n"
+    @printf "  \033[0;37mjust stop-storage     \033[0;34m Stop storage service\033[0m\n"
     @printf "  \033[0;37mjust stop-gateway     \033[0;34m Stop gateway service\033[0m\n"
     @printf "  \033[0;37mjust status           \033[0;34m Check health status of all services\033[0m\n"
     @printf "  \033[0;37mjust demo             \033[0;34m Open gateway web UI in browser\033[0m\n"
@@ -119,6 +121,7 @@ init-all:
     cd services/embeddings && just init
     cd services/search && just init
     cd services/geometric && just init
+    cd services/storage && just init
     cd services/gateway && just init
     cd tools && just init
     @printf "\033[0;32m✓ All services initialized\033[0m\n"
@@ -142,6 +145,12 @@ start-geometric:
     cd services/geometric && just run
     @echo ""
 
+# Start storage service locally
+start-storage:
+    @echo ""
+    cd services/storage && just run
+    @echo ""
+
 # Start gateway service locally
 start-gateway:
     @echo ""
@@ -158,6 +167,7 @@ start-all:
     cd services/embeddings && uv run uvicorn embeddings_service.app:create_app --factory --host 0.0.0.0 --port 8001 &
     cd services/search && uv run uvicorn search_service.app:create_app --factory --host 0.0.0.0 --port 8002 &
     cd services/geometric && uv run uvicorn geometric_service.app:create_app --factory --host 0.0.0.0 --port 8003 &
+    cd services/storage && uv run uvicorn storage_service.app:create_app --factory --host 0.0.0.0 --port 8004 &
     cd services/gateway && uv run uvicorn gateway.app:create_app --factory --host 0.0.0.0 --port 8000 &
 
     printf "Services starting in background...\n"
@@ -182,6 +192,12 @@ stop-geometric:
     cd services/geometric && just kill
     @echo ""
 
+# Stop storage service
+stop-storage:
+    @echo ""
+    cd services/storage && just kill
+    @echo ""
+
 # Stop gateway service
 stop-gateway:
     @echo ""
@@ -195,6 +211,7 @@ stop-all:
     cd services/embeddings && just kill
     cd services/search && just kill
     cd services/geometric && just kill
+    cd services/storage && just kill
     cd services/gateway && just kill
     @printf "\033[0;32m✓ All services stopped\033[0m\n"
     @echo ""
@@ -240,6 +257,7 @@ status:
     check_service "Embeddings" 8001
     check_service "Search" 8002
     check_service "Geometric" 8003
+    check_service "Storage" 8004
 
     printf "\n"
 
@@ -250,6 +268,7 @@ destroy-all:
     cd services/embeddings && just destroy
     cd services/search && just destroy
     cd services/geometric && just destroy
+    cd services/storage && just destroy
     cd services/gateway && just destroy
     cd tools && just destroy
     @printf "\033[0;32m✓ All virtual environments removed\033[0m\n"
@@ -368,6 +387,7 @@ test-all:
     cd services/embeddings && just test
     cd services/search && just test
     cd services/geometric && just test
+    cd services/storage && just test
     cd services/gateway && just test
     @printf "\033[0;32m✓ All tests passed\033[0m\n"
     @echo ""
@@ -406,6 +426,7 @@ ci-all:
     cd services/embeddings && just ci
     cd services/search && just ci
     cd services/geometric && just ci
+    cd services/storage && just ci
     cd services/gateway && just ci
     printf "\n"
     printf "\033[0;32m✓ All CI checks passed\033[0m\n"
@@ -427,6 +448,9 @@ ci-all-quiet:
     printf "Checking geometric...\n"
     cd services/geometric && just ci-quiet
 
+    printf "Checking storage...\n"
+    cd services/storage && just ci-quiet
+
     printf "Checking gateway...\n"
     cd services/gateway && just ci-quiet
 
@@ -440,5 +464,6 @@ format-all:
     cd services/embeddings && just code-format
     cd services/search && just code-format
     cd services/geometric && just code-format
+    cd services/storage && just code-format
     cd services/gateway && just code-format
     @echo ""
