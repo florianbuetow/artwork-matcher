@@ -34,28 +34,54 @@ This mirrors production systems like Smartify and Google Arts & Culture.
 
 ## Quick Start
 
-1. **Download evaluation data:**
-   ```bash
-   just download-batch
-   ```
+### 1. Check prerequisites
 
-2. **Initialize and start services:**
-   ```bash
-   just init-all
-   just start-all
-   ```
+Verify that all required tools are installed:
 
-3. **Build the search index and evaluate:**
-   ```bash
-   just evaluate
-   ```
+```bash
+just check
+```
 
-4. **Test identification:**
-   ```bash
-   curl -X POST http://localhost:8000/identify \
-     -H "Content-Type: application/json" \
-     -d '{"image": "'$(base64 -i data/evaluation/pictures/bk_24.jpg | tr -d '\n')'"}'
-   ```
+### 2. Initialize and start services
+
+```bash
+just init-all
+just start-all
+```
+
+### 3. Prepare evaluation data
+
+The evaluation pipeline expects a `data/evaluation/` directory with the following structure:
+
+```
+data/evaluation/
+├── objects/        # Reference images of museum artworks (one per artwork)
+├── pictures/       # Visitor photos to match against the reference collection
+└── labels.csv      # Ground truth: maps each visitor photo to its correct artwork(s)
+```
+
+- **`objects/`** — Contains one image file per artwork in the museum's collection. The filename (without extension) is the artwork's unique ID.
+- **`pictures/`** — Contains visitor photos. Each photo should depict one of the artworks from `objects/`.
+- **`labels.csv`** — A CSV file mapping visitor photos to their correct artwork matches. Format:
+
+  ```
+  picture_image_path, painting_image_paths
+  photo_001.jpg, artwork_A.jpg
+  photo_002.jpg, artwork_B.jpg;artwork_C.jpg
+  ```
+
+  - `picture_image_path` — filename of the visitor photo (relative to `pictures/`)
+  - `painting_image_paths` — one or more artwork filenames (relative to `objects/`), separated by `;` when multiple artworks are valid matches
+
+Populate this directory with your own dataset. The project does not ship evaluation data.
+
+### 4. Run the evaluation pipeline
+
+Index the evaluation dataset and run the end-to-end accuracy and performance test:
+
+```bash
+just evaluate
+```
 
 ## API Endpoints
 
