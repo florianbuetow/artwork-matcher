@@ -26,6 +26,7 @@ dev = [
     "pip-audit>=2.7.0",
     "pygount>=1.8.0",
     "types-PyYAML>=6.0.0",
+    "numpy>=2.0.0",
 ]
 
 [build-system]
