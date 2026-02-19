@@ -1,7 +1,7 @@
 # Decision: Confidence Scoring Penalties
 
 **Status:** Under review
-**Date:** 2026-02-19
+**Date:** (removed)
 **Context:** Gateway service confidence calculation
 
 ## Summary

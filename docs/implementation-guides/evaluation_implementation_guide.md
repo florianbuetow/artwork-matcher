@@ -1801,7 +1801,7 @@ Reports are saved to `./reports/evaluation/`:
 ```markdown
 # Artwork Matcher Evaluation Report
 
-**Generated**: 2026-02-02 14:30:00 UTC
+**Generated**: (timestamp removed)
 **Test Dataset**: data/testdata
 **Pictures Evaluated**: 17
 **Objects in Index**: 28
