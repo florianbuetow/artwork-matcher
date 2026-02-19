@@ -170,7 +170,7 @@ Is your index size < 10K vectors?
 
 ---
 
-#### Scaling Considerations (Future)
+#### Scaling Considerations (If Needed)
 
 If this system scaled to a large museum network:
 

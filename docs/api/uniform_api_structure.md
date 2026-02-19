@@ -514,9 +514,9 @@ async with timeout(25.0):
 
 **Current approach: No URL versioning**
 
-For this project's scope, API versioning is not implemented. All services expose `v1`-equivalent APIs at the root path.
+For this project's scope, APIs are currently unversioned at the URL level. All services expose `v1`-equivalent APIs at the root path.
 
-**Future consideration:** If breaking changes are needed, use URL prefix versioning:
+**Versioning evolution path:** If breaking changes are needed, use URL prefix versioning:
 
 ```
 /v1/embed
