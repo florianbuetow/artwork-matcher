@@ -46,6 +46,7 @@ backends:
   embeddings_url: "http://localhost:8001"
   search_url: "http://localhost:8002"
   geometric_url: "http://localhost:8003"
+  storage_url: "http://localhost:8004"
   timeout_seconds: 30.0
   retry:
     max_attempts: 3
@@ -79,7 +80,6 @@ server:
     - "*"
 
 data:
-  objects_path: "/tmp/test_objects"
   labels_path: "/tmp/test_labels.csv"
 """
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
@@ -168,16 +168,34 @@ def mock_geometric_client() -> AsyncMock:
 
 
 @pytest.fixture
+def mock_storage_client() -> AsyncMock:
+    """Create a mock storage client."""
+    client = AsyncMock()
+    client.health_check.return_value = "healthy"
+    client.get_image_bytes.return_value = b"fake jpeg data"
+    client.get_image_base64.return_value = "ZmFrZSBqcGVnIGRhdGE="
+    client.get_info.return_value = {
+        "service": "storage",
+        "version": "0.1.0",
+        "objects": {"count": 28},
+    }
+    client.close = AsyncMock()
+    return client
+
+
+@pytest.fixture
 def mock_app_state(
     mock_embeddings_client: AsyncMock,
     mock_search_client: AsyncMock,
     mock_geometric_client: AsyncMock,
+    mock_storage_client: AsyncMock,
 ) -> MagicMock:
     """Create mock app state with mock clients."""
     mock_state = MagicMock()
     mock_state.embeddings_client = mock_embeddings_client
     mock_state.search_client = mock_search_client
     mock_state.geometric_client = mock_geometric_client
+    mock_state.storage_client = mock_storage_client
     mock_state.uptime_seconds = 123.45
     mock_state.uptime_formatted = "2m 3s"
     return mock_state
@@ -235,6 +253,7 @@ def test_client(
         patch("gateway.routers.health.get_app_state", return_value=mock_app_state),
         patch("gateway.routers.info.get_app_state", return_value=mock_app_state),
         patch("gateway.routers.identify.get_app_state", return_value=mock_app_state),
+        patch("gateway.routers.objects.get_app_state", return_value=mock_app_state),
         TestClient(app) as client,
     ):
         yield client
