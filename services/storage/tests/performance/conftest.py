@@ -30,9 +30,17 @@ SERVICE_ROOT = Path(__file__).parent.parent.parent
 
 # Test configuration constants
 ITERATIONS_PER_SCENARIO = 30
-OBJECT_SIZES = [1_024, 10_240, 102_400, 512_000, 1_048_576]  # 1KB, 10KB, 100KB, 512KB, 1MB
+OBJECT_SIZES = [
+    10_240,  # 10 KB - small thumbnail
+    51_200,  # 50 KB - compressed web image
+    102_400,  # 100 KB - typical phone photo (compressed)
+    512_000,  # 500 KB - high-quality JPEG
+    1_048_576,  # 1 MB - large photo
+    2_097_152,  # 2 MB - high-res photo
+    5_242_880,  # 5 MB - uncompressed / RAW-ish
+]
 THROUGHPUT_REQUESTS = 250
-THROUGHPUT_OBJECT_SIZE = 102_400  # 100 KB for throughput tests
+THROUGHPUT_OBJECT_SIZE = 512_000  # 500 KB for throughput tests (typical image)
 CONCURRENCY_LEVELS = [2, 4, 8, 16]
 
 # Report output path

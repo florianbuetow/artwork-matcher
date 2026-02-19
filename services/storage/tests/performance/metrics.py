@@ -326,9 +326,9 @@ class PerformanceReport:
             "| Parameter | Value |",
             "|-----------|-------|",
             "| Iterations per scenario | 30 |",
-            "| Object sizes | 1 KB, 10 KB, 100 KB, 512 KB, 1 MB |",
+            "| Object sizes | 10 KB, 50 KB, 100 KB, 500 KB, 1 MB, 2 MB, 5 MB |",
             "| Throughput requests | 250 |",
-            "| Throughput object size | 100 KB |",
+            "| Throughput object size | 500 KB |",
             "| Concurrency levels | 2, 4, 8, 16 workers |",
             "",
         ]
