@@ -12,7 +12,8 @@ help:
     @echo ""
     @printf "\033[0;34m=== Search Service (port 8002) ===\033[0m\n"
     @echo ""
-    @printf "\033[1;33mEnvironment\033[0m\n"
+    @printf "\033[1;33mSetup\033[0m\n"
+    @printf "  \033[0;37mjust check            \033[0;34m Check if all required tools are installed\033[0m\n"
     @printf "  \033[0;37mjust init             \033[0;34m Initialize development environment\033[0m\n"
     @printf "  \033[0;37mjust destroy          \033[0;34m Remove virtual environment\033[0m\n"
     @echo ""
@@ -52,6 +53,45 @@ help:
     @printf "  \033[0;37mjust ci-all           \033[0;34m Run CI + integration tests\033[0m\n"
     @printf "  \033[0;37mjust ci-quiet         \033[0;34m Run all CI checks (quiet)\033[0m\n"
     @echo ""
+
+# === Setup ===
+
+# Check if all required tools are installed
+check:
+    #!/usr/bin/env bash
+    printf "\n"
+    printf "\033[0;34m=== Checking Required Tools ===\033[0m\n"
+    printf "\n"
+    missing=0
+
+    check_tool() {
+        local name=$1
+        local cmd=$2
+        local version_flag=${3:---version}
+        if command -v "$cmd" >/dev/null 2>&1; then
+            version=$("$cmd" $version_flag 2>&1 | head -1)
+            printf "\033[0;32m✓ %s\033[0m - %s\n" "$name" "$version"
+        else
+            printf "\033[0;31m✗ %s\033[0m - not found\n" "$name"
+            missing=$((missing + 1))
+        fi
+    }
+
+    check_tool "uv"     uv     "--version"
+    check_tool "python"  python3 "--version"
+    check_tool "docker"  docker  "--version"
+    check_tool "curl"    curl    "--version"
+    check_tool "jq"      jq      "--version"
+    check_tool "lsof"    lsof    "-v"
+
+    printf "\n"
+    if [ "$missing" -gt 0 ]; then
+        printf "\033[0;31m✗ %d tool(s) missing\033[0m\n" "$missing"
+        exit 1
+    else
+        printf "\033[0;32m✓ All required tools are installed\033[0m\n"
+    fi
+    printf "\n"
 
 # === Environment Management ===
 

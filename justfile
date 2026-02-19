@@ -9,8 +9,12 @@ help:
     @echo ""
     @printf "\033[0;34m=== Artwork Matcher ===\033[0m\n"
     @echo ""
-    @printf "\033[1;33mLocal Development\033[0m\n"
+    @printf "\033[1;33mSetup\033[0m\n"
+    @printf "  \033[0;37mjust check            \033[0;34m Check if all required tools are installed\033[0m\n"
     @printf "  \033[0;37mjust init-all         \033[0;34m Initialize all service environments\033[0m\n"
+    @printf "  \033[0;37mjust destroy-all      \033[0;34m Destroy all virtual environments\033[0m\n"
+    @echo ""
+    @printf "\033[1;33mLocal Development\033[0m\n"
     @printf "  \033[0;37mjust start-all        \033[0;34m Start all services in background\033[0m\n"
     @printf "  \033[0;37mjust start-embeddings \033[0;34m Start embeddings service locally\033[0m\n"
     @printf "  \033[0;37mjust start-search     \033[0;34m Start search service locally\033[0m\n"
@@ -22,7 +26,7 @@ help:
     @printf "  \033[0;37mjust stop-geometric   \033[0;34m Stop geometric service\033[0m\n"
     @printf "  \033[0;37mjust stop-gateway     \033[0;34m Stop gateway service\033[0m\n"
     @printf "  \033[0;37mjust status           \033[0;34m Check health status of all services\033[0m\n"
-    @printf "  \033[0;37mjust destroy-all      \033[0;34m Destroy all virtual environments\033[0m\n"
+    @printf "  \033[0;37mjust demo             \033[0;34m Open gateway web UI in browser\033[0m\n"
     @echo ""
     @printf "\033[1;33mDocker\033[0m\n"
     @printf "  \033[0;37mjust docker-up        \033[0;34m Start all services\033[0m\n"
@@ -52,7 +56,61 @@ help:
     @printf "  \033[0;37mjust format-all       \033[0;34m Auto-format all services\033[0m\n"
     @echo ""
 
+# --- Setup ---
+
+# Check if all required tools are installed
+check:
+    #!/usr/bin/env bash
+    printf "\n"
+    printf "\033[0;34m=== Checking Required Tools ===\033[0m\n"
+    printf "\n"
+    missing=0
+
+    check_tool() {
+        local name=$1
+        local cmd=$2
+        local version_flag=${3:---version}
+        if command -v "$cmd" >/dev/null 2>&1; then
+            version=$("$cmd" $version_flag 2>&1 | head -1)
+            printf "\033[0;32m✓ %s\033[0m - %s\n" "$name" "$version"
+        else
+            printf "\033[0;31m✗ %s\033[0m - not found\n" "$name"
+            missing=$((missing + 1))
+        fi
+    }
+
+    check_tool "uv"     uv     "--version"
+    check_tool "python"  python3 "--version"
+    check_tool "docker"  docker  "--version"
+    check_tool "curl"    curl    "--version"
+    check_tool "jq"      jq      "--version"
+    check_tool "lsof"    lsof    "-v"
+
+    printf "\n"
+    if [ "$missing" -gt 0 ]; then
+        printf "\033[0;31m✗ %d tool(s) missing\033[0m\n" "$missing"
+        exit 1
+    else
+        printf "\033[0;32m✓ All required tools are installed\033[0m\n"
+    fi
+    printf "\n"
+
 # --- Local Development ---
+
+# Open gateway web UI in browser
+demo:
+    #!/usr/bin/env bash
+    url="http://localhost:8000"
+    if ! curl -s --connect-timeout 2 "${url}/health?check_backends=false" >/dev/null 2>&1; then
+        printf "\033[0;31m✗ Gateway is not running on port 8000\033[0m\n"
+        exit 1
+    fi
+    case "$(uname -s)" in
+        Darwin)  open "$url" ;;
+        Linux)   xdg-open "$url" ;;
+        MINGW*|MSYS*|CYGWIN*) cmd.exe /c start "$url" ;;
+        *)       echo "Unsupported platform: $(uname -s)" && exit 1 ;;
+    esac
 
 # Initialize all service environments
 init-all:
@@ -151,10 +209,11 @@ status:
     check_service() {
         local name=$1
         local port=$2
+        local query_params=${3:-}
         local health_response
         local info_response
 
-        if health_response=$(curl -s --connect-timeout 2 "http://localhost:${port}/health" 2>/dev/null); then
+        if health_response=$(curl -s --connect-timeout 2 "http://localhost:${port}/health${query_params}" 2>/dev/null); then
             status=$(echo "$health_response" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
             uptime=$(echo "$health_response" | grep -o '"uptime":"[^"]*"' | cut -d'"' -f4)
             if [ "$status" = "healthy" ]; then
@@ -177,7 +236,7 @@ status:
         fi
     }
 
-    check_service "Gateway" 8000
+    check_service "Gateway" 8000 "?check_backends=false"
     check_service "Embeddings" 8001
     check_service "Search" 8002
     check_service "Geometric" 8003
