@@ -58,7 +58,19 @@ async def put_object(object_id: str, request: Request) -> Response:
     _validate_object_id(object_id)
     store = _get_blob_store()
     data = await request.body()
-    store.put(object_id, data)
+    try:
+        store.put(object_id, data)
+    except OSError as exc:
+        raise ServiceError(
+            error="storage_write_failed",
+            message=f"Failed to store object '{object_id}'",
+            status_code=503,
+            details={
+                "object_id": object_id,
+                "exception_type": exc.__class__.__name__,
+                "reason": str(exc),
+            },
+        ) from exc
     return Response(status_code=204)
 
 
@@ -68,7 +80,19 @@ async def get_object(object_id: str) -> Response:
     _validate_object_id(object_id)
     settings = get_settings()
     store = _get_blob_store()
-    data = store.get(object_id)
+    try:
+        data = store.get(object_id)
+    except OSError as exc:
+        raise ServiceError(
+            error="storage_read_failed",
+            message=f"Failed to read object '{object_id}'",
+            status_code=503,
+            details={
+                "object_id": object_id,
+                "exception_type": exc.__class__.__name__,
+                "reason": str(exc),
+            },
+        ) from exc
     if data is None:
         raise ServiceError(
             error="not_found",
@@ -84,7 +108,19 @@ async def delete_object(object_id: str) -> Response:
     """Delete a single object."""
     _validate_object_id(object_id)
     store = _get_blob_store()
-    deleted = store.delete(object_id)
+    try:
+        deleted = store.delete(object_id)
+    except OSError as exc:
+        raise ServiceError(
+            error="storage_delete_failed",
+            message=f"Failed to delete object '{object_id}'",
+            status_code=503,
+            details={
+                "object_id": object_id,
+                "exception_type": exc.__class__.__name__,
+                "reason": str(exc),
+            },
+        ) from exc
     if not deleted:
         raise ServiceError(
             error="not_found",
@@ -99,5 +135,16 @@ async def delete_object(object_id: str) -> Response:
 async def delete_all_objects() -> DeleteAllResponse:
     """Delete all stored objects."""
     store = _get_blob_store()
-    count = store.delete_all()
+    try:
+        count = store.delete_all()
+    except OSError as exc:
+        raise ServiceError(
+            error="storage_delete_all_failed",
+            message="Failed to delete all stored objects",
+            status_code=503,
+            details={
+                "exception_type": exc.__class__.__name__,
+                "reason": str(exc),
+            },
+        ) from exc
     return DeleteAllResponse(deleted_count=count)
