@@ -37,7 +37,7 @@ service:
 
 storage:
   path: "{storage_dir}"
-  content_type: "image/jpeg"
+  content_type: "application/octet-stream"
 
 server:
   host: "0.0.0.0"

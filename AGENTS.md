@@ -76,6 +76,7 @@ services/
   embeddings/         DINOv2 embedding extraction (port 8001)
   search/             FAISS vector search (port 8002)
   geometric/          ORB + RANSAC verification (port 8003)
+  storage/            Binary object storage (port 8004)
 tools/
   build_index.py      Index building script
   evaluate.py         Accuracy evaluation script

@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 VALID_CONFIG = {
     "service": {"name": "storage", "version": "0.1.0"},
-    "storage": {"path": "./data/objects", "content_type": "image/jpeg"},
+    "storage": {"path": "./data/objects", "content_type": "application/octet-stream"},
     "server": {"host": "0.0.0.0", "port": 8004, "log_level": "info"},
     "logging": {"level": "INFO", "format": "json"},
 }
@@ -40,7 +40,7 @@ service:
 
 storage:
   path: "./data/objects"
-  content_type: "image/jpeg"
+  content_type: "application/octet-stream"
 
 server:
   host: "0.0.0.0"
@@ -116,7 +116,7 @@ class TestSettings:
         assert settings.service.name == "storage"
         assert settings.server.port == 8004
         assert settings.storage.path == "./data/objects"
-        assert settings.storage.content_type == "image/jpeg"
+        assert settings.storage.content_type == "application/octet-stream"
 
     def test_missing_required_field_raises_error(self) -> None:
         """Missing required field raises ValidationError."""
@@ -174,7 +174,7 @@ class TestGetSettings:
 
         assert settings.service.name == "storage"
         assert settings.storage.path == "./data/objects"
-        assert settings.storage.content_type == "image/jpeg"
+        assert settings.storage.content_type == "application/octet-stream"
 
 
 @pytest.mark.unit

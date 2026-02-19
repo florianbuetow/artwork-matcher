@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
+
 import pytest
+
+
+def _md5(data: bytes) -> str:
+    return hashlib.md5(data).hexdigest()
 
 
 @pytest.mark.integration
@@ -26,7 +32,7 @@ class TestInfoEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["service"] == "storage"
-        assert data["storage"]["content_type"] == "image/jpeg"
+        assert data["storage"]["content_type"] == "application/octet-stream"
         assert data["storage"]["object_count"] == 0
 
 
@@ -35,22 +41,30 @@ class TestPutAndGetObject:
     """Integration tests for PUT and GET /objects/{id}."""
 
     def test_put_and_get_roundtrip(self, client) -> None:
-        """Store and retrieve an object."""
-        put_response = client.put("/objects/test-obj", content=b"hello world")
+        """Store and retrieve an object with hash verification."""
+        payload = b"hello world"
+        expected_hash = _md5(payload)
+
+        put_response = client.put("/objects/test-obj", content=payload)
         assert put_response.status_code == 204
 
         get_response = client.get("/objects/test-obj")
         assert get_response.status_code == 200
-        assert get_response.content == b"hello world"
-        assert get_response.headers["content-type"] == "image/jpeg"
+        assert get_response.content == payload
+        assert _md5(get_response.content) == expected_hash
+        assert get_response.headers["content-type"] == "application/octet-stream"
 
     def test_put_overwrites_existing(self, client) -> None:
-        """Putting to an existing key overwrites."""
-        client.put("/objects/test-obj", content=b"original")
-        client.put("/objects/test-obj", content=b"updated")
+        """Putting to an existing key overwrites with correct hash."""
+        original = b"original"
+        updated = b"updated"
+        client.put("/objects/test-obj", content=original)
+        client.put("/objects/test-obj", content=updated)
 
         response = client.get("/objects/test-obj")
-        assert response.content == b"updated"
+        assert response.content == updated
+        assert _md5(response.content) == _md5(updated)
+        assert _md5(response.content) != _md5(original)
 
     def test_get_missing_returns_404(self, client) -> None:
         """Getting non-existent object returns 404."""
@@ -59,12 +73,42 @@ class TestPutAndGetObject:
         assert response.json()["error"] == "not_found"
 
     def test_put_binary_data(self, client) -> None:
-        """Handles arbitrary binary data."""
+        """Handles arbitrary binary data with hash verification."""
         binary_data = bytes(range(256))
+        expected_hash = _md5(binary_data)
         client.put("/objects/binary", content=binary_data)
 
         response = client.get("/objects/binary")
         assert response.content == binary_data
+        assert _md5(response.content) == expected_hash
+
+    def test_large_payload_hash_roundtrip(self, client) -> None:
+        """1 MB payload survives roundtrip with matching hash."""
+        payload = bytes(range(256)) * 4096  # 1 MB
+        expected_hash = _md5(payload)
+
+        client.put("/objects/large-1mb", content=payload)
+        response = client.get("/objects/large-1mb")
+
+        assert response.status_code == 200
+        assert _md5(response.content) == expected_hash
+
+    def test_multiple_objects_independent_hashes(self, client) -> None:
+        """Multiple objects retain independent data verified by hash."""
+        payloads = {
+            "obj-a": b"alpha",
+            "obj-b": b"bravo",
+            "obj-c": b"charlie",
+        }
+        expected_hashes = {k: _md5(v) for k, v in payloads.items()}
+
+        for obj_id, data in payloads.items():
+            client.put(f"/objects/{obj_id}", content=data)
+
+        for obj_id, expected_hash in expected_hashes.items():
+            response = client.get(f"/objects/{obj_id}")
+            assert response.status_code == 200
+            assert _md5(response.content) == expected_hash, f"Hash mismatch for {obj_id}"
 
 
 @pytest.mark.integration

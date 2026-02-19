@@ -129,6 +129,7 @@ Response:
 | [Embeddings](services/embeddings/README.md) | 8001 | DINOv2 embedding extraction |
 | [Search](services/search/README.md) | 8002 | FAISS vector similarity search |
 | [Geometric](services/geometric/README.md) | 8003 | ORB + RANSAC geometric verification |
+| [Storage](services/storage/README.md) | 8004 | Binary object storage |
 
 ### Documentation
 
@@ -167,6 +168,7 @@ From within a service directory (e.g., `cd services/embeddings`):
 - `just start-embeddings` - Start embeddings service locally
 - `just start-search` - Start search service locally
 - `just start-geometric` - Start geometric service locally
+- `just start-storage` - Start storage service locally
 - `just start-gateway` - Start gateway service locally
 - `just stop-all` - Stop all locally running services
 - `just status` - Check health status of all services
@@ -244,6 +246,9 @@ artwork-matcher/
 │   │
 │   ├── geometric/          # ORB + RANSAC verification (port 8003)
 │   │   ├── README.md
+│   │   └── ...
+│   │
+│   ├── storage/            # Binary object storage (port 8004)
 │   │   └── ...
 │   │
 │   └── gateway/            # API orchestration (port 8000)

@@ -24,7 +24,7 @@ class TestInfoEndpoint:
             settings.service.name = "storage"
             settings.service.version = "0.1.0"
             settings.storage.path = "./data/objects"
-            settings.storage.content_type = "image/jpeg"
+            settings.storage.content_type = "application/octet-stream"
             mock_settings.return_value = settings
 
             state = MagicMock()
@@ -52,7 +52,7 @@ class TestInfoEndpoint:
             settings.service.name = "storage"
             settings.service.version = "0.1.0"
             settings.storage.path = "./data/objects"
-            settings.storage.content_type = "image/jpeg"
+            settings.storage.content_type = "application/octet-stream"
             mock_settings.return_value = settings
 
             state = MagicMock()
@@ -69,5 +69,5 @@ class TestInfoEndpoint:
 
             assert data["service"] == "storage"
             assert data["storage"]["path"] == "./data/objects"
-            assert data["storage"]["content_type"] == "image/jpeg"
+            assert data["storage"]["content_type"] == "application/octet-stream"
             assert data["storage"]["object_count"] == 5

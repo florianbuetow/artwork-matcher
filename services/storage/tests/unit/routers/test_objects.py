@@ -82,7 +82,7 @@ class TestGetObject:
             settings = MagicMock()
             settings.service.name = "storage"
             settings.service.version = "0.1.0"
-            settings.storage.content_type = "image/jpeg"
+            settings.storage.content_type = "application/octet-stream"
             mock_settings.return_value = settings
             mock_obj_settings.return_value = settings
 
@@ -99,7 +99,7 @@ class TestGetObject:
 
             assert response.status_code == 200
             assert response.content == b"image-data"
-            assert response.headers["content-type"] == "image/jpeg"
+            assert response.headers["content-type"] == "application/octet-stream"
 
     def test_get_missing_returns_404(self) -> None:
         """Getting a non-existent object returns 404."""
@@ -114,7 +114,7 @@ class TestGetObject:
             settings = MagicMock()
             settings.service.name = "storage"
             settings.service.version = "0.1.0"
-            settings.storage.content_type = "image/jpeg"
+            settings.storage.content_type = "application/octet-stream"
             mock_settings.return_value = settings
             mock_obj_settings.return_value = settings
 
