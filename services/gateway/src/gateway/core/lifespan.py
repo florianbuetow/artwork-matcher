@@ -10,7 +10,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
-from gateway.clients import EmbeddingsClient, GeometricClient, SearchClient
+from gateway.clients import EmbeddingsClient, GeometricClient, SearchClient, StorageClient
 from gateway.config import get_settings
 from gateway.core.state import init_app_state
 from gateway.logging import get_logger, setup_logging
@@ -63,6 +63,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             "embeddings_url": settings.backends.embeddings_url,
             "search_url": settings.backends.search_url,
             "geometric_url": settings.backends.geometric_url,
+            "storage_url": settings.backends.storage_url,
             "timeout": settings.backends.timeout_seconds,
         },
     )
@@ -109,10 +110,25 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         ),
     )
 
+    state.storage_client = StorageClient(
+        base_url=settings.backends.storage_url,
+        timeout=settings.backends.timeout_seconds,
+        service_name="storage",
+        retry_max_attempts=settings.backends.retry.max_attempts,
+        retry_initial_backoff_seconds=settings.backends.retry.initial_backoff_seconds,
+        retry_max_backoff_seconds=settings.backends.retry.max_backoff_seconds,
+        retry_jitter_seconds=settings.backends.retry.jitter_seconds,
+        circuit_breaker_failure_threshold=settings.backends.circuit_breaker.failure_threshold,
+        circuit_breaker_recovery_timeout_seconds=(
+            settings.backends.circuit_breaker.recovery_timeout_seconds
+        ),
+    )
+
     # Check backend health (non-blocking, just log status)
     embeddings_status = await state.embeddings_client.health_check()
     search_status = await state.search_client.health_check()
     geometric_status = await state.geometric_client.health_check()
+    storage_status = await state.storage_client.health_check()
 
     logger.info(
         "Backend health check completed",
@@ -120,6 +136,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             "embeddings": embeddings_status,
             "search": search_status,
             "geometric": geometric_status,
+            "storage": storage_status,
         },
     )
 
@@ -143,5 +160,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         await state.search_client.close()
     if state.geometric_client:
         await state.geometric_client.close()
+    if state.storage_client:
+        await state.storage_client.close()
 
     logger.info("Service shutdown complete")

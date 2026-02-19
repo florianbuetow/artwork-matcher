@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from gateway.clients import EmbeddingsClient, GeometricClient, SearchClient
+    from gateway.clients import EmbeddingsClient, GeometricClient, SearchClient, StorageClient
 
 
 @dataclass
@@ -30,6 +30,7 @@ class AppState:
     _embeddings_client: EmbeddingsClient | None = field(default=None, repr=False)
     _search_client: SearchClient | None = field(default=None, repr=False)
     _geometric_client: GeometricClient | None = field(default=None, repr=False)
+    _storage_client: StorageClient | None = field(default=None, repr=False)
 
     @property
     def embeddings_client(self) -> EmbeddingsClient:
@@ -66,6 +67,18 @@ class AppState:
     def geometric_client(self, value: GeometricClient) -> None:
         """Set the geometric client."""
         self._geometric_client = value
+
+    @property
+    def storage_client(self) -> StorageClient:
+        """Get the blob store client. Raises RuntimeError if not initialized."""
+        if self._storage_client is None:
+            raise RuntimeError("Blob store client not initialized")
+        return self._storage_client
+
+    @storage_client.setter
+    def storage_client(self, value: StorageClient) -> None:
+        """Set the blob store client."""
+        self._storage_client = value
 
     @property
     def uptime_seconds(self) -> float:

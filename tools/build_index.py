@@ -6,7 +6,7 @@ Reads images from the objects directory, extracts embeddings via the
 Embeddings service, and adds them to the Search service index.
 
 Usage:
-    uv run python build_index.py --objects ../data/evaluation/objects --embeddings-url http://localhost:8001 --search-url http://localhost:8002
+    uv run python build_index.py --objects ../data/evaluation/objects --embeddings-url http://localhost:8001 --search-url http://localhost:8002 --storage-url http://localhost:8004
 """
 from __future__ import annotations
 
@@ -45,6 +45,12 @@ def parse_args() -> argparse.Namespace:
         type=str,
         required=True,
         help="Search service URL",
+    )
+    parser.add_argument(
+        "--storage-url",
+        type=str,
+        required=True,
+        help="Storage service URL for uploading reference images",
     )
     parser.add_argument(
         "--force",
@@ -162,6 +168,35 @@ def main() -> int:
             )
             return 1
 
+        try:
+            storage_response = client.get(f"{args.storage_url}/health")
+            storage_response.raise_for_status()
+            storage_health = storage_response.json()
+
+            if storage_health.get("status") != "healthy":
+                console.print(
+                    f"[yellow]Warning: Storage service status: "
+                    f"{storage_health.get('status', 'unknown')}[/yellow]"
+                )
+            else:
+                console.print(f"[green]✓ Storage service healthy[/green]")
+
+        except (
+            httpx.RequestError,
+            httpx.HTTPStatusError,
+            JSONDecodeError,
+            ValueError,
+            TypeError,
+        ) as e:
+            console.print(
+                f"[red]Error: Cannot connect to storage service at "
+                f"{args.storage_url} ({e})[/red]"
+            )
+            console.print(
+                "[yellow]Make sure services are running: just docker-up[/yellow]"
+            )
+            return 1
+
         # Step 3: Decide whether to rebuild
         console.print()
         console.print("[dim]Step 3: Checking current index state...[/dim]")
@@ -262,6 +297,14 @@ def main() -> int:
                         },
                     )
                     add_response.raise_for_status()
+
+                    # Upload image to storage service
+                    storage_response = client.put(
+                        f"{args.storage_url}/objects/{object_id}",
+                        content=image_bytes,
+                        headers={"Content-Type": "application/octet-stream"},
+                    )
+                    storage_response.raise_for_status()
 
                     success_count += 1
 

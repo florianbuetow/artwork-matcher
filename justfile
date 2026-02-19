@@ -336,7 +336,7 @@ build-index:
     @echo ""
     @printf "\033[0;33mThis will replace the existing FAISS index with downloaded images.\033[0m\n"
     @printf "Continue? [y/N] " && read ans && [ "$ans" = "y" ] || (printf "\033[0;31mAborted.\033[0m\n" && exit 1)
-    cd tools && uv run python build_index.py --objects ../data/downloads/images --embeddings-url http://localhost:8001 --search-url http://localhost:8002 --force
+    cd tools && uv run python build_index.py --objects ../data/downloads/images --embeddings-url http://localhost:8001 --search-url http://localhost:8002 --storage-url http://localhost:8004 --force
     @echo ""
 
 # Delete the FAISS index
@@ -363,7 +363,7 @@ build-eval-index:
     @echo ""
     @printf "\033[0;33mThis will replace the existing FAISS index with evaluation data.\033[0m\n"
     @printf "Continue? [y/N] " && read ans && [ "$ans" = "y" ] || (printf "\033[0;31mAborted.\033[0m\n" && exit 1)
-    cd tools && uv run python build_index.py --objects ../data/evaluation/objects --embeddings-url http://localhost:8001 --search-url http://localhost:8002 --force
+    cd tools && uv run python build_index.py --objects ../data/evaluation/objects --embeddings-url http://localhost:8001 --search-url http://localhost:8002 --storage-url http://localhost:8004 --force
     @echo ""
 
 # Full E2E evaluation pipeline (local: deletes index, rebuilds, evaluates)

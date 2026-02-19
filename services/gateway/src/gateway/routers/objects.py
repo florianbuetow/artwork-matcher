@@ -2,6 +2,7 @@
 Objects endpoints.
 
 Provides endpoints to list and retrieve artwork metadata and images.
+Images are served by proxying requests to the storage service.
 """
 
 from __future__ import annotations
@@ -11,9 +12,10 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 
 from gateway.config import get_settings
+from gateway.core.state import get_app_state
 from gateway.logging import get_logger
 from gateway.schemas import ObjectDetails, ObjectListResponse, ObjectSummary
 
@@ -66,38 +68,6 @@ def load_metadata() -> dict[str, dict[str, Any]]:
         logger.error(f"Failed to load metadata: {e}", exc_info=True)
 
     return metadata
-
-
-def find_image_path(object_id: str) -> Path | None:
-    """
-    Find the image file for an object.
-
-    Searches for common image extensions.
-
-    Returns:
-        Path to image file or None if not found
-    """
-    # Validate object_id doesn't contain path traversal characters
-    if ".." in object_id or "/" in object_id or "\\" in object_id:
-        return None
-
-    settings = get_settings()
-    objects_path = Path(settings.data.objects_path).resolve()
-
-    extensions = [".jpg", ".jpeg", ".png", ".webp"]
-
-    for ext in extensions:
-        # Try object_id directly
-        path = objects_path / f"{object_id}{ext}"
-        if path.exists():
-            return path
-
-        # Try in subdirectory
-        path = objects_path / object_id / f"image{ext}"
-        if path.exists():
-            return path
-
-    return None
 
 
 @router.get("/objects", response_model=ObjectListResponse)
@@ -158,10 +128,6 @@ async def get_object(object_id: str) -> ObjectDetails:
 
     obj = metadata[object_id]
 
-    # Check if image exists
-    image_path = find_image_path(object_id)
-    image_url = f"/objects/{object_id}/image" if image_path else None
-
     return ObjectDetails(
         object_id=obj["object_id"],
         # Internal metadata dict - fields may not exist
@@ -170,39 +136,30 @@ async def get_object(object_id: str) -> ObjectDetails:
         year=obj.get("year"),  # nosemgrep: no-dict-get-with-default
         description=obj.get("description"),  # nosemgrep: no-dict-get-with-default
         location=obj.get("location"),  # nosemgrep: no-dict-get-with-default
-        image_url=image_url,
+        image_url=f"/objects/{object_id}/image",
     )
 
 
 @router.get("/objects/{object_id}/image")
-async def get_object_image(object_id: str) -> FileResponse:
+async def get_object_image(object_id: str) -> Response:
     """
     Get the reference image for an object.
+
+    Proxies the request to the storage service.
 
     Args:
         object_id: Object identifier
 
     Returns:
-        Image file
+        JPEG image bytes
 
     Raises:
         HTTPException: If object or image not found
     """
-    metadata = load_metadata()
+    state = get_app_state()
+    image_bytes = await state.storage_client.get_image_bytes(object_id)
 
-    if object_id not in metadata:
-        raise HTTPException(
-            status_code=404,
-            detail={
-                "error": "not_found",
-                "message": f"Object '{object_id}' not found in database",
-                "details": {},
-            },
-        )
-
-    image_path = find_image_path(object_id)
-
-    if image_path is None:
+    if image_bytes is None:
         raise HTTPException(
             status_code=404,
             detail={
@@ -212,21 +169,7 @@ async def get_object_image(object_id: str) -> FileResponse:
             },
         )
 
-    # Determine media type from extension
-    ext = image_path.suffix.lower()
-    media_types = {
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".png": "image/png",
-        ".webp": "image/webp",
-    }
-    # Fallback for unknown extensions is intentional
-    media_type = media_types.get(ext)  # nosemgrep: no-dict-get-with-default
-    if media_type is None:
-        media_type = "application/octet-stream"
-
-    return FileResponse(
-        path=image_path,
-        media_type=media_type,
-        filename=f"{object_id}{ext}",
+    return Response(
+        content=image_bytes,
+        media_type="image/jpeg",
     )

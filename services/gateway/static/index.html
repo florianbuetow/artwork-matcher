@@ -221,38 +221,18 @@
       display: none;
     }
 
-    /* --- Alternatives toggle --- */
+    /* --- Rank badge --- */
 
-    .alternatives-section {
-      margin-top: 0.5rem;
-    }
-
-    .alternatives-toggle {
-      background: none;
-      border: none;
-      color: #8b6f47;
-      font-size: 0.85rem;
-      cursor: pointer;
-      font-family: inherit;
-      padding: 0.25rem 0;
-    }
-
-    .alternatives-toggle:hover {
-      text-decoration: underline;
-    }
-
-    .alternatives-list {
-      display: none;
-      margin-top: 0.75rem;
-    }
-
-    .alternatives-list .match-card {
-      opacity: 0.85;
-    }
-
-    .alternatives-list .match-card img {
-      width: 100px;
-      height: 100px;
+    .rank {
+      display: inline-block;
+      background: #8b6f47;
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.1rem 0.4rem;
+      border-radius: 3px;
+      vertical-align: middle;
+      margin-right: 0.25rem;
     }
   </style>
 </head>
@@ -354,6 +334,7 @@
           image: base64,
           options: {
             include_alternatives: true,
+            threshold: 0.0,
           },
         }),
       });
@@ -394,31 +375,36 @@
       return;
     }
 
-    const matchHtml = renderMatchCard(data.match);
-    const alternativesHtml = renderAlternatives(data.alternatives);
+    const allMatches = [data.match];
+    if (data.alternatives && data.alternatives.length > 0) {
+      allMatches.push(...data.alternatives);
+    }
+
+    const count = allMatches.length;
+    const cardsHtml = allMatches.map((m, i) => renderMatchCard(m, i + 1)).join("");
     const timingHtml = renderTiming(data.timing);
 
     result.innerHTML = `
-      <h2>Match Found</h2>
-      ${matchHtml}
-      ${alternativesHtml}
+      <h2>${count} Result${count > 1 ? "s" : ""} Found</h2>
+      ${cardsHtml}
       ${timingHtml}
     `;
 
     show(result);
   }
 
-  function renderMatchCard(match) {
+  function renderMatchCard(match, rank) {
     const imageUrl = `${GATEWAY_URL}/objects/${match.object_id}/image`;
     const name = match.name || match.object_id;
     const artist = match.artist || "Unknown artist";
     const year = match.year || "";
+    const rankLabel = rank != null ? `<span class="rank">#${rank}</span> ` : "";
 
     return `
       <div class="match-card">
         <img src="${imageUrl}" alt="${name}">
         <div class="match-info">
-          <h3>${name}</h3>
+          <h3>${rankLabel}${name}</h3>
           <p class="artist">${artist}</p>
           ${year ? `<p class="year">${year}</p>` : ""}
           <dl class="meta-grid">
@@ -438,23 +424,6 @@
     `;
   }
 
-  function renderAlternatives(alternatives) {
-    if (!alternatives || alternatives.length === 0) return "";
-
-    const cards = alternatives.map(renderMatchCard).join("");
-
-    return `
-      <div class="alternatives-section">
-        <button class="alternatives-toggle" onclick="toggleAlternatives(this)">
-          Show ${alternatives.length} alternative${alternatives.length > 1 ? "s" : ""}
-        </button>
-        <div class="alternatives-list">
-          ${cards}
-        </div>
-      </div>
-    `;
-  }
-
   function renderTiming(timing) {
     if (!timing) return "";
 
@@ -467,18 +436,6 @@
     if (timing.total_ms != null) parts.push(`total ${timing.total_ms.toFixed(0)}ms`);
 
     return `<p class="timing-bar">${parts.join(" · ")}</p>`;
-  }
-
-  /* ---- Alternatives toggle ---- */
-
-  function toggleAlternatives(button) {
-    const list = button.nextElementSibling;
-    const visible = list.style.display === "block";
-    list.style.display = visible ? "none" : "block";
-    const count = list.querySelectorAll(".match-card").length;
-    button.textContent = visible
-      ? `Show ${count} alternative${count > 1 ? "s" : ""}`
-      : `Hide alternative${count > 1 ? "s" : ""}`;
   }
 
   /* ---- Helpers ---- */

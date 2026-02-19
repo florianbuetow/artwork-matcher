@@ -10,7 +10,6 @@ Orchestrates the identification pipeline:
 
 from __future__ import annotations
 
-import base64
 import time
 from typing import TYPE_CHECKING
 
@@ -21,7 +20,6 @@ from gateway.config import get_settings
 from gateway.core.exceptions import BackendError
 from gateway.core.state import get_app_state
 from gateway.logging import get_logger
-from gateway.routers.objects import find_image_path
 from gateway.schemas import (
     DebugInfo,
     IdentifyOptions,
@@ -38,45 +36,32 @@ if TYPE_CHECKING:
 router = APIRouter()
 
 
-def build_geometric_references(
+async def build_geometric_references(
     candidates: list[SearchResult],
 ) -> tuple[list[dict[str, str]], int]:
     """
     Build base64-encoded reference payloads for geometric batch matching.
 
+    Fetches reference images from the storage service.
+
     Returns:
         Tuple of (references payload, skipped_count)
     """
     logger = get_logger()
+    state = get_app_state()
     references: list[dict[str, str]] = []
     skipped_count = 0
 
     for candidate in candidates:
-        image_path = find_image_path(candidate.object_id)
-        if image_path is None:
+        reference_image = await state.storage_client.get_image_base64(candidate.object_id)
+        if reference_image is None:
             skipped_count += 1
             logger.warning(
-                "Reference image not found for geometric verification",
+                "Reference image not found in storage for geometric verification",
                 extra={"object_id": candidate.object_id},
             )
             continue
 
-        try:
-            image_bytes = image_path.read_bytes()
-        except OSError as e:
-            skipped_count += 1
-            logger.error(
-                "Failed to read reference image for geometric verification",
-                extra={
-                    "object_id": candidate.object_id,
-                    "image_path": str(image_path),
-                    "error": str(e),
-                },
-                exc_info=True,
-            )
-            continue
-
-        reference_image = base64.b64encode(image_bytes).decode("ascii")
         references.append(
             {
                 "reference_id": candidate.object_id,
@@ -243,7 +228,7 @@ async def identify_artwork(request: IdentifyRequest) -> IdentifyResponse:
 
     if do_geometric:
         t0 = time.perf_counter()
-        references, skipped_references = build_geometric_references(candidates)
+        references, skipped_references = await build_geometric_references(candidates)
         try:
             if references:
                 batch_result = await state.geometric_client.match_batch(
