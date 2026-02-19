@@ -228,8 +228,8 @@ async def identify_artwork(request: IdentifyRequest) -> IdentifyResponse:
 
     if do_geometric:
         t0 = time.perf_counter()
-        references, skipped_references = await build_geometric_references(candidates)
         try:
+            references, skipped_references = await build_geometric_references(candidates)
             if references:
                 batch_result = await state.geometric_client.match_batch(
                     query_image=request.image,

@@ -252,6 +252,7 @@ class TestHealthResponse:
                 embeddings="healthy",
                 search="healthy",
                 geometric="healthy",
+                storage="healthy",
             ),
         )
 

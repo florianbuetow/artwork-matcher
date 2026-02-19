@@ -44,9 +44,14 @@ help:
     @printf "  \033[0;37mjust delete-index     \033[0;34m Delete the FAISS index\033[0m\n"
     @echo ""
     @printf "\033[1;33mEvaluation\033[0m\n"
-    @printf "  \033[0;37mjust build-eval-index \033[0;34m Build FAISS index from object images\033[0m\n"
-    @printf "  \033[0;37mjust evaluate         \033[0;34m Full E2E evaluation pipeline (local)\033[0m\n"
-    @printf "  \033[0;37mjust docker-evaluate  \033[0;34m Full E2E evaluation pipeline (Docker)\033[0m\n"
+    @printf "  \033[0;37mjust build-eval-index       \033[0;34m Build FAISS index from object images\033[0m\n"
+    @printf "  \033[0;37mjust evaluate               \033[0;34m Full E2E evaluation pipeline (local)\033[0m\n"
+    @printf "  \033[0;37mjust docker-evaluate        \033[0;34m Full E2E evaluation pipeline (Docker)\033[0m\n"
+    @printf "  \033[0;37mjust test-perf-all          \033[0;34m Run performance tests for all services\033[0m\n"
+    @printf "  \033[0;37mjust test-perf-embeddings   \033[0;34m Run performance tests for embeddings\033[0m\n"
+    @printf "  \033[0;37mjust test-perf-search       \033[0;34m Run performance tests for search\033[0m\n"
+    @printf "  \033[0;37mjust test-perf-geometric    \033[0;34m Run performance tests for geometric\033[0m\n"
+    @printf "  \033[0;37mjust test-perf-gateway      \033[0;34m Run performance tests for gateway\033[0m\n"
     @echo ""
     @printf "\033[1;33mCI & Code Quality\033[0m\n"
     @printf "  \033[0;37mjust test-all         \033[0;34m Run tests for all services\033[0m\n"
@@ -376,6 +381,43 @@ evaluate: delete-index build-eval-index
 docker-evaluate:
     @echo ""
     cd tools && uv run python run_evaluation.py --testdata ../data/evaluation --output ../reports/evaluation --gateway-url http://localhost:8000 --embeddings-url http://localhost:8001 --search-url http://localhost:8002 --geometric-url http://localhost:8003 --k 10 --threshold 0.0
+    @echo ""
+
+# --- Performance ---
+
+# Run performance tests for all services
+test-perf-all:
+    @echo ""
+    @printf "\033[0;34m=== Running All Performance Tests ===\033[0m\n"
+    cd services/embeddings && just test-performance
+    cd services/search && just test-performance
+    cd services/geometric && just test-performance
+    cd services/gateway && just test-performance
+    @printf "\033[0;32m✓ All performance tests passed\033[0m\n"
+    @echo ""
+
+# Run performance tests for embeddings service
+test-perf-embeddings:
+    @echo ""
+    cd services/embeddings && just test-performance
+    @echo ""
+
+# Run performance tests for search service
+test-perf-search:
+    @echo ""
+    cd services/search && just test-performance
+    @echo ""
+
+# Run performance tests for geometric service
+test-perf-geometric:
+    @echo ""
+    cd services/geometric && just test-performance
+    @echo ""
+
+# Run performance tests for gateway service
+test-perf-gateway:
+    @echo ""
+    cd services/gateway && just test-performance
     @echo ""
 
 # --- CI & Code Quality ---

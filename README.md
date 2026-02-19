@@ -20,6 +20,7 @@ Museum visitors photograph artworks during their visit. This system automaticall
 | Embeddings | DINOv2 (Meta) | State-of-the-art visual similarity, validated on Met Museum dataset |
 | Search | FAISS IndexFlatIP | Exact nearest neighbor search, no training required |
 | Verification | ORB + RANSAC | Classical CV confirms local features align spatially |
+| Storage | File system | Binary object storage for reference images and metadata |
 | Gateway | FastAPI | Orchestrates pipeline, single public API |
 
 This mirrors production systems like Smartify and Google Arts & Culture.
@@ -115,7 +116,12 @@ Response:
 │   │ Embeddings  │   │   Search    │   │  Geometric  │     │    │
 │   │   :8001     │──▶│    :8002    │──▶│    :8003    │     │    │
 │   │  (DINOv2)   │   │   (FAISS)   │   │ (ORB+RANSAC)│     │    │
-│   └─────────────┘   └─────────────┘   └─────────────┘     │    │
+│   └─────────────┘   └──────┬──────┘   └─────────────┘     │    │
+│                             │                               │    │
+│                      ┌──────┴──────┐                        │    │
+│                      │   Storage   │                        │    │
+│                      │    :8004    │                        │    │
+│                      └─────────────┘                        │    │
 │                                                             │    │
 │   ◀─────────────────── Best Match ─────────────────────────┘    │
 └─────────────────────────────────────────────────────────────────┘
@@ -141,6 +147,7 @@ Response:
 | [Search API Spec](docs/api/search_service_api_spec.md) | FAISS vector similarity search |
 | [Geometric API Spec](docs/api/geometric_service_api_spec.md) | ORB + RANSAC verification |
 | [Uniform API Structure](docs/api/uniform_api_structure.md) | Common conventions across all services |
+| [Confidence Scoring Penalties](docs/decisions/confidence-scoring-penalties.md) | Decision record and tuning plan for confidence scoring |
 
 ## Development
 
@@ -218,6 +225,11 @@ Run these from the root as `just <command> <service>` or within a service direct
 - `just build-eval-index` - Build FAISS index from evaluation object images
 - `just evaluate` - Full E2E evaluation pipeline (local)
 - `just docker-evaluate` - Full E2E evaluation pipeline (Docker)
+- `just test-perf-all` - Run performance tests for all services
+- `just test-perf-embeddings` - Run performance tests for embeddings
+- `just test-perf-search` - Run performance tests for search
+- `just test-perf-geometric` - Run performance tests for geometric
+- `just test-perf-gateway` - Run performance tests for gateway
 
 ## Repository Structure
 

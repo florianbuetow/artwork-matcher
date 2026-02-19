@@ -45,19 +45,21 @@ async def health_check(
         embeddings_status = await state.embeddings_client.health_check()
         search_status = await state.search_client.health_check()
         geometric_status = await state.geometric_client.health_check()
+        storage_status = await state.storage_client.health_check()
 
         backends = BackendStatus(
             embeddings=embeddings_status,
             search=search_status,
             geometric=geometric_status,
+            storage=storage_status,
         )
 
         # Determine overall status
         # Embeddings and search are critical
         if embeddings_status != "healthy" or search_status != "healthy":
             status = "unhealthy"
-        # Geometric is optional (graceful degradation)
-        elif geometric_status != "healthy":
+        # Geometric and storage are optional (graceful degradation)
+        elif geometric_status != "healthy" or storage_status != "healthy":
             status = "degraded"
 
     return HealthResponse(

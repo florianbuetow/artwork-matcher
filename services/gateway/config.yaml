@@ -23,7 +23,7 @@ backends:
 
 pipeline:
   search_k: 5                       # Number of candidates to retrieve
-  similarity_threshold: 0.7         # Minimum embedding similarity
+  similarity_threshold: 0.0         # Minimum embedding similarity
   geometric_verification: true      # Enable geometric verification stage
   confidence_threshold: 0.0         # Minimum confidence to return match
 

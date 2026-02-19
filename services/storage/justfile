@@ -133,7 +133,7 @@ kill:
     printf "\n"
 
     # Find process listening on port 8004
-    pid=$(lsof -ti :8004 2>/dev/null)
+    pid=$(lsof -ti :8004 -sTCP:LISTEN 2>/dev/null)
 
     if [ -n "$pid" ]; then
         printf "Service is running (PID: %s). Stopping...\n" "$pid"
@@ -141,13 +141,13 @@ kill:
         sleep 1
 
         # Check if still running
-        if lsof -ti :8004 > /dev/null 2>&1; then
+        if lsof -ti :8004 -sTCP:LISTEN > /dev/null 2>&1; then
             printf "\033[0;31m✗ Service still running. Forcing kill...\033[0m\n"
-            kill -9 $(lsof -ti :8004) 2>/dev/null
+            kill -9 $(lsof -ti :8004 -sTCP:LISTEN) 2>/dev/null
             sleep 1
         fi
 
-        if lsof -ti :8004 > /dev/null 2>&1; then
+        if lsof -ti :8004 -sTCP:LISTEN > /dev/null 2>&1; then
             printf "\033[0;31m✗ Failed to stop service\033[0m\n"
             exit 1
         else
