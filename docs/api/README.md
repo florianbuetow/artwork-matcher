@@ -62,6 +62,7 @@ The Artwork Matcher is a microservices-based system for identifying museum artwo
 | **Embeddings** | 8001 | Image → vector | DINOv2, PyTorch |
 | **Search** | 8002 | Vector similarity search | FAISS |
 | **Geometric** | 8003 | Spatial verification | OpenCV, ORB, RANSAC |
+| **Storage** | 8004 | Binary object storage | Filesystem |
 
 ## Detailed API Specifications
 
@@ -117,6 +118,17 @@ The Artwork Matcher is a microservices-based system for identifying museum artwo
 | `POST` | `/extract` | Extract ORB features |
 | `POST` | `/match` | Compare two images |
 | `POST` | `/match/batch` | Compare query against multiple references |
+
+### Storage Service (Port 8004) — Internal
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| `GET` | `/health` | Health check |
+| `GET` | `/info` | Storage configuration and object count |
+| `PUT` | `/objects/{id}` | Store binary object |
+| `GET` | `/objects/{id}` | Retrieve binary object |
+| `DELETE` | `/objects/{id}` | Delete a single object |
+| `DELETE` | `/objects` | Delete all stored objects |
 
 ---
 
@@ -725,6 +737,7 @@ curl -X POST http://localhost:8000/identify \
 | Embeddings | 8001 | `EMBEDDINGS__SERVER__PORT` |
 | Search | 8002 | `SEARCH__SERVER__PORT` |
 | Geometric | 8003 | `GEOMETRIC__SERVER__PORT` |
+| Storage | 8004 | `STORAGE__SERVER__PORT` |
 
 ---
 
