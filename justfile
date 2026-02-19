@@ -347,8 +347,8 @@ build-eval-index:
     cd tools && uv run python build_index.py --objects ../data/evaluation/objects --embeddings-url http://localhost:8001 --search-url http://localhost:8002 --force
     @echo ""
 
-# Full E2E evaluation pipeline (local: builds index, evaluates)
-evaluate: build-eval-index
+# Full E2E evaluation pipeline (local: deletes index, rebuilds, evaluates)
+evaluate: delete-index build-eval-index
     @echo ""
     cd tools && uv run python evaluate.py --testdata ../data/evaluation --output ../reports/evaluation --gateway-url http://localhost:8000 --k 10 --threshold 0.0
     @echo ""
