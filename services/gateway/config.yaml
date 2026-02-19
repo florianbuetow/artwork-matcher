@@ -10,6 +10,7 @@ backends:
   embeddings_url: "http://localhost:8001"
   search_url: "http://localhost:8002"
   geometric_url: "http://localhost:8003"
+  storage_url: "http://localhost:8004"
   timeout_seconds: 30.0
   retry:
     max_attempts: 3
@@ -22,9 +23,9 @@ backends:
 
 pipeline:
   search_k: 5                       # Number of candidates to retrieve
-  similarity_threshold: 0.7         # Minimum embedding similarity
+  similarity_threshold: 0.0         # Minimum embedding similarity
   geometric_verification: true      # Enable geometric verification stage
-  confidence_threshold: 0.6         # Minimum confidence to return match
+  confidence_threshold: 0.0         # Minimum confidence to return match
 
 scoring:
   geometric_score_threshold: 0.5
@@ -43,5 +44,4 @@ server:
     - "*"
 
 data:
-  objects_path: "./data/objects"
   labels_path: "./data/labels.csv"

@@ -12,6 +12,7 @@ All services in the Artwork Matcher system follow a consistent API structure. Th
 | Embeddings | 8001 | DINOv2 embedding extraction |
 | Search | 8002 | FAISS vector search |
 | Geometric | 8003 | ORB + RANSAC geometric verification |
+| Storage | 8004 | Binary object storage |
 
 ---
 
@@ -156,7 +157,8 @@ Each service adds configuration relevant to its consumers:
   "backends": {
     "embeddings": "http://localhost:8001",
     "search": "http://localhost:8002",
-    "geometric": "http://localhost:8003"
+    "geometric": "http://localhost:8003",
+    "storage": "http://localhost:8004"
   }
 }
 ```
@@ -512,9 +514,9 @@ async with timeout(25.0):
 
 **Current approach: No URL versioning**
 
-For this project's scope, API versioning is not implemented. All services expose `v1`-equivalent APIs at the root path.
+For this project's scope, APIs are currently unversioned at the URL level. All services expose `v1`-equivalent APIs at the root path.
 
-**Future consideration:** If breaking changes are needed, use URL prefix versioning:
+**Versioning evolution path:** If breaking changes are needed, use URL prefix versioning:
 
 ```
 /v1/embed
@@ -556,7 +558,8 @@ app.add_middleware(
 )
 ```
 
-Internal services (embeddings, search, geometric) do not require CORS as they are not accessed directly from browsers.
+Internal services (embeddings, search, geometric, storage) do not require CORS as they are not
+accessed directly from browsers.
 
 ---
 
@@ -620,7 +623,7 @@ curl http://localhost:8001/health
 curl http://localhost:8001/info
 
 # Check all services are healthy
-for port in 8000 8001 8002 8003; do
+for port in 8000 8001 8002 8003 8004; do
   echo "Port $port: $(curl -s http://localhost:$port/health | jq -r '.status')"
 done
 ```
@@ -635,6 +638,7 @@ SERVICES = {
     "embeddings": "http://localhost:8001",
     "search": "http://localhost:8002",
     "geometric": "http://localhost:8003",
+    "storage": "http://localhost:8004",
 }
 
 def check_all_services() -> dict[str, str]:

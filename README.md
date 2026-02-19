@@ -20,6 +20,7 @@ Museum visitors photograph artworks during their visit. This system automaticall
 | Embeddings | DINOv2 (Meta) | State-of-the-art visual similarity, validated on Met Museum dataset |
 | Search | FAISS IndexFlatIP | Exact nearest neighbor search, no training required |
 | Verification | ORB + RANSAC | Classical CV confirms local features align spatially |
+| Storage | File system | Binary object storage for reference images and metadata |
 | Gateway | FastAPI | Orchestrates pipeline, single public API |
 
 This mirrors production systems like Smartify and Google Arts & Culture.
@@ -101,22 +102,27 @@ Response:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         Client                                   │
-│                    (Browser / curl / App)                        │
+│                         Client                                  │
+│                    (Browser / curl / App)                       │
 └─────────────────────────┬───────────────────────────────────────┘
                           │
                           ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Gateway Service (:8000)                       │
-│                                                                  │
+│                    Gateway Service (:8000)                      │
+│                                                                 │
 │   POST /identify ──────────────────────────────────────────┐    │
-│                                                             │    │
-│   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐     │    │
-│   │ Embeddings  │   │   Search    │   │  Geometric  │     │    │
-│   │   :8001     │──▶│    :8002    │──▶│    :8003    │     │    │
-│   │  (DINOv2)   │   │   (FAISS)   │   │ (ORB+RANSAC)│     │    │
-│   └─────────────┘   └─────────────┘   └─────────────┘     │    │
-│                                                             │    │
+│                                                            │    │
+│   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐      │    │
+│   │ Embeddings  │   │   Search    │   │  Geometric  │      │    │
+│   │   :8001     │──▶│    :8002    │──▶│    :8003    │      │    │
+│   │  (DINOv2)   │   │   (FAISS)   │   │ (ORB+RANSAC)│      │    │
+│   └─────────────┘   └──────┬──────┘   └─────────────┘      │    │
+│                             │                              │    │
+│                      ┌──────┴──────┐                       │    │
+│                      │   Storage   │                       │    │
+│                      │    :8004    │                       │    │
+│                      └─────────────┘                       │    │
+│                                                            │    │
 │   ◀─────────────────── Best Match ─────────────────────────┘    │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -129,6 +135,7 @@ Response:
 | [Embeddings](services/embeddings/README.md) | 8001 | DINOv2 embedding extraction |
 | [Search](services/search/README.md) | 8002 | FAISS vector similarity search |
 | [Geometric](services/geometric/README.md) | 8003 | ORB + RANSAC geometric verification |
+| [Storage](services/storage/README.md) | 8004 | Binary object storage |
 
 ### Documentation
 
@@ -140,6 +147,13 @@ Response:
 | [Search API Spec](docs/api/search_service_api_spec.md) | FAISS vector similarity search |
 | [Geometric API Spec](docs/api/geometric_service_api_spec.md) | ORB + RANSAC verification |
 | [Uniform API Structure](docs/api/uniform_api_structure.md) | Common conventions across all services |
+| [Confidence Scoring Penalties](docs/decisions/confidence-scoring-penalties.md) | Decision record and tuning plan for confidence scoring |
+| [Performance Testing Methodology](docs/performance/testing-methodology.md) | Strategy for service benchmarks and end-to-end validation |
+| [Evaluation Report](reports/evaluation/evaluation_report.md) | E2E accuracy evaluation results against test dataset |
+| [Embeddings Performance](reports/performance/embedding_service_performance.md) | Embeddings service latency and throughput benchmarks |
+| [Search Performance](reports/performance/search_service_performance.md) | Search service latency and throughput benchmarks |
+| [Geometric Performance](reports/performance/geometric_service_performance.md) | Geometric service latency and throughput benchmarks |
+| [Gateway Performance](reports/performance/gateway_service_performance.md) | Gateway service latency and throughput benchmarks |
 
 ## Development
 
@@ -167,6 +181,7 @@ From within a service directory (e.g., `cd services/embeddings`):
 - `just start-embeddings` - Start embeddings service locally
 - `just start-search` - Start search service locally
 - `just start-geometric` - Start geometric service locally
+- `just start-storage` - Start storage service locally
 - `just start-gateway` - Start gateway service locally
 - `just stop-all` - Stop all locally running services
 - `just status` - Check health status of all services
@@ -216,6 +231,11 @@ Run these from the root as `just <command> <service>` or within a service direct
 - `just build-eval-index` - Build FAISS index from evaluation object images
 - `just evaluate` - Full E2E evaluation pipeline (local)
 - `just docker-evaluate` - Full E2E evaluation pipeline (Docker)
+- `just test-perf-all` - Run performance tests for all services
+- `just test-perf-embeddings` - Run performance tests for embeddings
+- `just test-perf-search` - Run performance tests for search
+- `just test-perf-geometric` - Run performance tests for geometric
+- `just test-perf-gateway` - Run performance tests for gateway
 
 ## Repository Structure
 
@@ -244,6 +264,9 @@ artwork-matcher/
 │   │
 │   ├── geometric/          # ORB + RANSAC verification (port 8003)
 │   │   ├── README.md
+│   │   └── ...
+│   │
+│   ├── storage/            # Binary object storage (port 8004)
 │   │   └── ...
 │   │
 │   └── gateway/            # API orchestration (port 8000)

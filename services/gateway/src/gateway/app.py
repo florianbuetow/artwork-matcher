@@ -6,13 +6,22 @@ Creates and configures the FastAPI application instance.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from gateway.config import get_settings
 from gateway.core.exceptions import register_exception_handlers
 from gateway.core.lifespan import lifespan
 from gateway.routers import health, identify, info, objects
+
+
+def serve_frontend() -> FileResponse:
+    """Serve static frontend entrypoint."""
+    static_index_path = Path(__file__).resolve().parents[2] / "static" / "index.html"
+    return FileResponse(path=static_index_path)
 
 
 def create_app() -> FastAPI:
@@ -50,6 +59,7 @@ def create_app() -> FastAPI:
     app.include_router(info.router, tags=["Operations"])
     app.include_router(identify.router, tags=["Identification"])
     app.include_router(objects.router, tags=["Objects"])
+    app.add_api_route("/", serve_frontend, methods=["GET"], include_in_schema=False)
 
     return app
 

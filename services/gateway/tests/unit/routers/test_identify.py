@@ -2,17 +2,14 @@
 
 from __future__ import annotations
 
-import base64
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from tests.factories import create_test_image_base64
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from fastapi.testclient import TestClient
 
 
@@ -152,12 +149,10 @@ class TestIdentifyEndpoint:
         self,
         test_client: TestClient,
         mock_app_state: MagicMock,
-        tmp_path: Path,
     ) -> None:
         """Geometric verification loads references and calls match_batch."""
-        reference_path = tmp_path / "object_001.jpg"
-        reference_bytes = b"fake-jpeg-bytes"
-        reference_path.write_bytes(reference_bytes)
+        reference_b64 = "ZmFrZSBqcGVnIGRhdGE="
+        mock_app_state.storage_client.get_image_base64.return_value = reference_b64
 
         batch_result = MagicMock()
         geo_result = MagicMock()
@@ -166,11 +161,10 @@ class TestIdentifyEndpoint:
         batch_result.results = [geo_result]
         mock_app_state.geometric_client.match_batch.return_value = batch_result
 
-        with patch("gateway.routers.identify.find_image_path", return_value=reference_path):
-            response = test_client.post(
-                "/identify",
-                json={"image": create_test_image_base64()},
-            )
+        response = test_client.post(
+            "/identify",
+            json={"image": create_test_image_base64()},
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -185,7 +179,7 @@ class TestIdentifyEndpoint:
         assert kwargs["references"] == [
             {
                 "reference_id": "object_001",
-                "reference_image": base64.b64encode(reference_bytes).decode("ascii"),
+                "reference_image": reference_b64,
             }
         ]
 
@@ -195,11 +189,12 @@ class TestIdentifyEndpoint:
         mock_app_state: MagicMock,
     ) -> None:
         """Missing references should fall back to embedding-only scoring."""
-        with patch("gateway.routers.identify.find_image_path", return_value=None):
-            response = test_client.post(
-                "/identify",
-                json={"image": create_test_image_base64()},
-            )
+        mock_app_state.storage_client.get_image_base64.return_value = None
+
+        response = test_client.post(
+            "/identify",
+            json={"image": create_test_image_base64()},
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -215,13 +210,11 @@ class TestIdentifyEndpoint:
         self,
         test_client: TestClient,
         mock_app_state: MagicMock,
-        tmp_path: Path,
     ) -> None:
         """Geometric backend errors should degrade gracefully to embedding-only."""
         from gateway.core.exceptions import BackendError  # noqa: PLC0415
 
-        reference_path = tmp_path / "object_001.jpg"
-        reference_path.write_bytes(b"fake-jpeg-bytes")
+        mock_app_state.storage_client.get_image_base64.return_value = "ZmFrZSBqcGVnIGRhdGE="
         mock_app_state.geometric_client.match_batch.side_effect = BackendError(
             error="geometric_error",
             message="Geometric service unavailable",
@@ -229,11 +222,10 @@ class TestIdentifyEndpoint:
             details={"service": "geometric"},
         )
 
-        with patch("gateway.routers.identify.find_image_path", return_value=reference_path):
-            response = test_client.post(
-                "/identify",
-                json={"image": create_test_image_base64()},
-            )
+        response = test_client.post(
+            "/identify",
+            json={"image": create_test_image_base64()},
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -249,15 +241,13 @@ class TestIdentifyEndpoint:
         test_client: TestClient,
         mock_app_state: MagicMock,
     ) -> None:
-        """OSError while loading references should not fail the request."""
-        bad_path = MagicMock()
-        bad_path.read_bytes.side_effect = OSError("read failed")
+        """Storage returning None for references should not fail the request."""
+        mock_app_state.storage_client.get_image_base64.return_value = None
 
-        with patch("gateway.routers.identify.find_image_path", return_value=bad_path):
-            response = test_client.post(
-                "/identify",
-                json={"image": create_test_image_base64()},
-            )
+        response = test_client.post(
+            "/identify",
+            json={"image": create_test_image_base64()},
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -273,21 +263,18 @@ class TestIdentifyEndpoint:
         self,
         test_client: TestClient,
         mock_app_state: MagicMock,
-        tmp_path: Path,
     ) -> None:
         """Empty batch response should set no_results skip reason."""
-        reference_path = tmp_path / "object_001.jpg"
-        reference_path.write_bytes(b"fake-jpeg-bytes")
+        mock_app_state.storage_client.get_image_base64.return_value = "ZmFrZSBqcGVnIGRhdGE="
 
         batch_result = MagicMock()
         batch_result.results = []
         mock_app_state.geometric_client.match_batch.return_value = batch_result
 
-        with patch("gateway.routers.identify.find_image_path", return_value=reference_path):
-            response = test_client.post(
-                "/identify",
-                json={"image": create_test_image_base64()},
-            )
+        response = test_client.post(
+            "/identify",
+            json={"image": create_test_image_base64()},
+        )
 
         assert response.status_code == 200
         data = response.json()

@@ -87,6 +87,7 @@ class BackendsConfig(BaseModel):
     embeddings_url: str
     search_url: str
     geometric_url: str
+    storage_url: str
     timeout_seconds: float = Field(..., gt=0)
     retry: RetryConfig
     circuit_breaker: CircuitBreakerConfig
@@ -133,7 +134,6 @@ class DataConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    objects_path: str
     labels_path: str
 
 

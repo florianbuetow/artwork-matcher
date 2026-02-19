@@ -12,7 +12,8 @@ help:
     @echo ""
     @printf "\033[0;34m=== Gateway Service (port 8000) ===\033[0m\n"
     @echo ""
-    @printf "\033[1;33mEnvironment\033[0m\n"
+    @printf "\033[1;33mSetup\033[0m\n"
+    @printf "  \033[0;37mjust check            \033[0;34m Check if all required tools are installed\033[0m\n"
     @printf "  \033[0;37mjust init             \033[0;34m Initialize development environment\033[0m\n"
     @printf "  \033[0;37mjust destroy          \033[0;34m Remove virtual environment\033[0m\n"
     @echo ""
@@ -20,6 +21,7 @@ help:
     @printf "  \033[0;37mjust run              \033[0;34m Run locally with hot reload\033[0m\n"
     @printf "  \033[0;37mjust kill             \033[0;34m Stop the locally running service\033[0m\n"
     @printf "  \033[0;37mjust status           \033[0;34m Check health status\033[0m\n"
+    @printf "  \033[0;37mjust demo             \033[0;34m Open gateway web UI in browser\033[0m\n"
     @echo ""
     @printf "\033[1;33mDocker\033[0m\n"
     @printf "  \033[0;37mjust docker-up        \033[0;34m Start in Docker (production)\033[0m\n"
@@ -52,6 +54,45 @@ help:
     @printf "  \033[0;37mjust ci-all           \033[0;34m Run CI + integration tests\033[0m\n"
     @printf "  \033[0;37mjust ci-quiet         \033[0;34m Run all CI checks (quiet)\033[0m\n"
     @echo ""
+
+# === Setup ===
+
+# Check if all required tools are installed
+check:
+    #!/usr/bin/env bash
+    printf "\n"
+    printf "\033[0;34m=== Checking Required Tools ===\033[0m\n"
+    printf "\n"
+    missing=0
+
+    check_tool() {
+        local name=$1
+        local cmd=$2
+        local version_flag=${3:---version}
+        if command -v "$cmd" >/dev/null 2>&1; then
+            version=$("$cmd" $version_flag 2>&1 | head -1)
+            printf "\033[0;32m✓ %s\033[0m - %s\n" "$name" "$version"
+        else
+            printf "\033[0;31m✗ %s\033[0m - not found\n" "$name"
+            missing=$((missing + 1))
+        fi
+    }
+
+    check_tool "uv"     uv     "--version"
+    check_tool "python"  python3 "--version"
+    check_tool "docker"  docker  "--version"
+    check_tool "curl"    curl    "--version"
+    check_tool "jq"      jq      "--version"
+    check_tool "lsof"    lsof    "-v"
+
+    printf "\n"
+    if [ "$missing" -gt 0 ]; then
+        printf "\033[0;31m✗ %d tool(s) missing\033[0m\n" "$missing"
+        exit 1
+    else
+        printf "\033[0;32m✓ All required tools are installed\033[0m\n"
+    fi
+    printf "\n"
 
 # === Environment Management ===
 
@@ -94,7 +135,7 @@ kill:
     printf "\n"
 
     # Find process listening on port 8000
-    pid=$(lsof -ti :8000 2>/dev/null)
+    pid=$(lsof -ti :8000 -sTCP:LISTEN 2>/dev/null)
 
     if [ -n "$pid" ]; then
         printf "Service is running (PID: %s). Stopping...\n" "$pid"
@@ -102,13 +143,13 @@ kill:
         sleep 1
 
         # Check if still running
-        if lsof -ti :8000 > /dev/null 2>&1; then
+        if lsof -ti :8000 -sTCP:LISTEN > /dev/null 2>&1; then
             printf "\033[0;31m✗ Service still running. Forcing kill...\033[0m\n"
-            kill -9 $(lsof -ti :8000) 2>/dev/null
+            kill -9 $(lsof -ti :8000 -sTCP:LISTEN) 2>/dev/null
             sleep 1
         fi
 
-        if lsof -ti :8000 > /dev/null 2>&1; then
+        if lsof -ti :8000 -sTCP:LISTEN > /dev/null 2>&1; then
             printf "\033[0;31m✗ Failed to stop service\033[0m\n"
             exit 1
         else
@@ -390,12 +431,27 @@ ci-all:
     printf "\033[0;32m✓ All CI checks (including integration tests) passed\033[0m\n"
     printf "\n"
 
+# Open gateway web UI in browser
+demo:
+    #!/usr/bin/env bash
+    url="http://localhost:8000"
+    if ! curl -s --connect-timeout 2 "${url}/health?check_backends=false" >/dev/null 2>&1; then
+        printf "\033[0;31m✗ Gateway is not running on port 8000\033[0m\n"
+        exit 1
+    fi
+    case "$(uname -s)" in
+        Darwin)  open "$url" ;;
+        Linux)   xdg-open "$url" ;;
+        MINGW*|MSYS*|CYGWIN*) cmd.exe /c start "$url" ;;
+        *)       echo "Unsupported platform: $(uname -s)" && exit 1 ;;
+    esac
+
 # Check service health status
 status:
     #!/usr/bin/env bash
     printf "\n=== Gateway Service Status ===\n\n"
 
-    health=$(curl -s http://localhost:8000/health 2>/dev/null)
+    health=$(curl -s "http://localhost:8000/health?check_backends=false" 2>/dev/null)
     if [ $? -eq 0 ] && [ -n "$health" ]; then
         status=$(echo "$health" | jq -r '.status' 2>/dev/null || echo "unknown")
         printf "✓ Gateway (port 8000) - %s\n" "$status"

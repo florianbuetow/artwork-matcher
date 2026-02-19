@@ -32,6 +32,7 @@ def build_valid_config() -> dict[str, object]:
             "embeddings_url": "http://localhost:8001",
             "search_url": "http://localhost:8002",
             "geometric_url": "http://localhost:8003",
+            "storage_url": "http://localhost:8004",
             "timeout_seconds": 30.0,
             "retry": {
                 "max_attempts": 3,
@@ -66,7 +67,6 @@ def build_valid_config() -> dict[str, object]:
             "cors_origins": ["*"],
         },
         "data": {
-            "objects_path": "/data/objects",
             "labels_path": "/data/labels.csv",
         },
     }
@@ -88,6 +88,7 @@ backends:
   embeddings_url: "http://localhost:8001"
   search_url: "http://localhost:8002"
   geometric_url: "http://localhost:8003"
+  storage_url: "http://localhost:8004"
   timeout_seconds: 30.0
   retry:
     max_attempts: 3
@@ -117,7 +118,6 @@ server:
   cors_origins:
     - "*"
 data:
-  objects_path: "/data/objects"
   labels_path: "/data/labels.csv"
 """
         )
@@ -178,6 +178,7 @@ class TestSettings:
                 "embeddings_url": "http://localhost:8001",
                 "search_url": "http://localhost:8002",
                 "geometric_url": "http://localhost:8003",
+                "storage_url": "http://localhost:8004",
                 "timeout_seconds": 30.0,
                 "retry": {
                     "max_attempts": 3,
@@ -212,7 +213,6 @@ class TestSettings:
                 "cors_origins": ["*"],
             },
             "data": {
-                "objects_path": "/data/objects",
                 "labels_path": "/data/labels.csv",
             },
         }

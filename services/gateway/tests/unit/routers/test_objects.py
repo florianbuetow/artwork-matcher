@@ -2,15 +2,13 @@
 Unit tests for objects endpoints.
 
 Tests the /objects, /objects/{id}, and /objects/{id}/image endpoints
-with mocked metadata and files.
+with mocked metadata and storage client.
 """
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -39,19 +37,6 @@ def mock_metadata() -> dict[str, dict[str, str | None]]:
             "location": None,
         },
     }
-
-
-@pytest.fixture
-def mock_objects_dir() -> Path:
-    """Create a temporary directory with mock image files."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        objects_path = Path(tmpdir)
-
-        # Create some mock image files
-        (objects_path / "obj_001.jpg").write_bytes(b"fake jpeg data")
-        (objects_path / "obj_002.png").write_bytes(b"fake png data")
-
-        yield objects_path
 
 
 @pytest.mark.unit
@@ -143,10 +128,7 @@ class TestGetObject:
         mock_metadata: dict[str, dict[str, str | None]],
     ) -> None:
         """Get object returns 200 OK for existing object."""
-        with (
-            patch("gateway.routers.objects.load_metadata", return_value=mock_metadata),
-            patch("gateway.routers.objects.find_image_path", return_value=None),
-        ):
+        with patch("gateway.routers.objects.load_metadata", return_value=mock_metadata):
             response = test_client.get("/objects/obj_001")
 
         assert response.status_code == 200
@@ -157,10 +139,7 @@ class TestGetObject:
         mock_metadata: dict[str, dict[str, str | None]],
     ) -> None:
         """Get object returns full details."""
-        with (
-            patch("gateway.routers.objects.load_metadata", return_value=mock_metadata),
-            patch("gateway.routers.objects.find_image_path", return_value=None),
-        ):
+        with patch("gateway.routers.objects.load_metadata", return_value=mock_metadata):
             response = test_client.get("/objects/obj_001")
             data = response.json()
 
@@ -176,33 +155,12 @@ class TestGetObject:
         test_client: TestClient,
         mock_metadata: dict[str, dict[str, str | None]],
     ) -> None:
-        """Get object includes image_url when image exists."""
-        with (
-            patch("gateway.routers.objects.load_metadata", return_value=mock_metadata),
-            patch(
-                "gateway.routers.objects.find_image_path",
-                return_value=Path("/fake/path/obj_001.jpg"),
-            ),
-        ):
+        """Get object always includes image_url."""
+        with patch("gateway.routers.objects.load_metadata", return_value=mock_metadata):
             response = test_client.get("/objects/obj_001")
             data = response.json()
 
         assert data["image_url"] == "/objects/obj_001/image"
-
-    def test_get_object_no_image_url_when_missing(
-        self,
-        test_client: TestClient,
-        mock_metadata: dict[str, dict[str, str | None]],
-    ) -> None:
-        """Get object has null image_url when image doesn't exist."""
-        with (
-            patch("gateway.routers.objects.load_metadata", return_value=mock_metadata),
-            patch("gateway.routers.objects.find_image_path", return_value=None),
-        ):
-            response = test_client.get("/objects/obj_001")
-            data = response.json()
-
-        assert data["image_url"] is None
 
     def test_get_object_not_found(
         self,
@@ -234,10 +192,7 @@ class TestGetObject:
         mock_metadata: dict[str, dict[str, str | None]],
     ) -> None:
         """Get object handles null optional fields."""
-        with (
-            patch("gateway.routers.objects.load_metadata", return_value=mock_metadata),
-            patch("gateway.routers.objects.find_image_path", return_value=None),
-        ):
+        with patch("gateway.routers.objects.load_metadata", return_value=mock_metadata):
             response = test_client.get("/objects/obj_002")
             data = response.json()
 
@@ -254,88 +209,52 @@ class TestGetObjectImage:
     def test_get_image_returns_200(
         self,
         test_client: TestClient,
-        mock_metadata: dict[str, dict[str, str | None]],
-        mock_objects_dir: Path,
     ) -> None:
-        """Get image returns 200 OK for existing image."""
-        image_path = mock_objects_dir / "obj_001.jpg"
-        with (
-            patch("gateway.routers.objects.load_metadata", return_value=mock_metadata),
-            patch("gateway.routers.objects.find_image_path", return_value=image_path),
-        ):
-            response = test_client.get("/objects/obj_001/image")
+        """Get image returns 200 OK when storage has the image."""
+        response = test_client.get("/objects/obj_001/image")
 
         assert response.status_code == 200
 
     def test_get_image_returns_jpeg_content_type(
         self,
         test_client: TestClient,
-        mock_metadata: dict[str, dict[str, str | None]],
-        mock_objects_dir: Path,
     ) -> None:
-        """Get image returns correct content type for JPEG."""
-        image_path = mock_objects_dir / "obj_001.jpg"
-        with (
-            patch("gateway.routers.objects.load_metadata", return_value=mock_metadata),
-            patch("gateway.routers.objects.find_image_path", return_value=image_path),
-        ):
-            response = test_client.get("/objects/obj_001/image")
+        """Get image returns JPEG content type."""
+        response = test_client.get("/objects/obj_001/image")
 
         assert response.headers["content-type"] == "image/jpeg"
 
-    def test_get_image_returns_png_content_type(
+    def test_get_image_returns_image_bytes(
         self,
         test_client: TestClient,
-        mock_metadata: dict[str, dict[str, str | None]],
-        mock_objects_dir: Path,
     ) -> None:
-        """Get image returns correct content type for PNG."""
-        image_path = mock_objects_dir / "obj_002.png"
-        with (
-            patch("gateway.routers.objects.load_metadata", return_value=mock_metadata),
-            patch("gateway.routers.objects.find_image_path", return_value=image_path),
-        ):
-            response = test_client.get("/objects/obj_002/image")
+        """Get image returns the raw bytes from storage."""
+        response = test_client.get("/objects/obj_001/image")
 
-        assert response.headers["content-type"] == "image/png"
+        assert response.content == b"fake jpeg data"
 
-    def test_get_image_object_not_found(
+    def test_get_image_not_found(
         self,
         test_client: TestClient,
-        mock_metadata: dict[str, dict[str, str | None]],
+        mock_app_state: AsyncMock,
     ) -> None:
-        """Get image returns 404 for non-existent object."""
-        with patch("gateway.routers.objects.load_metadata", return_value=mock_metadata):
-            response = test_client.get("/objects/nonexistent/image")
+        """Get image returns 404 when storage returns None."""
+        mock_app_state.storage_client.get_image_bytes.return_value = None
 
-        assert response.status_code == 404
-
-    def test_get_image_image_not_found(
-        self,
-        test_client: TestClient,
-        mock_metadata: dict[str, dict[str, str | None]],
-    ) -> None:
-        """Get image returns 404 when object exists but image doesn't."""
-        with (
-            patch("gateway.routers.objects.load_metadata", return_value=mock_metadata),
-            patch("gateway.routers.objects.find_image_path", return_value=None),
-        ):
-            response = test_client.get("/objects/obj_001/image")
+        response = test_client.get("/objects/obj_001/image")
 
         assert response.status_code == 404
 
     def test_get_image_not_found_error_details(
         self,
         test_client: TestClient,
-        mock_metadata: dict[str, dict[str, str | None]],
+        mock_app_state: AsyncMock,
     ) -> None:
-        """Get image 404 response includes error details for missing image."""
-        with (
-            patch("gateway.routers.objects.load_metadata", return_value=mock_metadata),
-            patch("gateway.routers.objects.find_image_path", return_value=None),
-        ):
-            response = test_client.get("/objects/obj_001/image")
-            data = response.json()
+        """Get image 404 response includes error details."""
+        mock_app_state.storage_client.get_image_bytes.return_value = None
+
+        response = test_client.get("/objects/obj_001/image")
+        data = response.json()
 
         assert data["detail"]["error"] == "image_not_found"
         assert "obj_001" in data["detail"]["message"]

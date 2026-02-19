@@ -11,11 +11,11 @@ This document describes the performance testing strategy for the artwork-matcher
    - [Embeddings Service](#embeddings-service)
    - [Search Service](#search-service)
    - [Geometric Service](#geometric-service)
+   - [Storage Service](#storage-service)
    - [Gateway Service](#gateway-service)
 5. [End-to-End Testing](#end-to-end-testing)
 6. [Running Tests](#running-tests)
 7. [Interpreting Results](#interpreting-results)
-8. [TODO: Missing Coverage](#todo-missing-coverage)
 
 ---
 
@@ -47,16 +47,16 @@ Performance testing serves three critical purposes:
 The system uses a layered testing approach:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    END-TO-END TESTS                         │
-│         Full pipeline with real services (TODO)             │
-├─────────────────────────────────────────────────────────────┤
-│                   GATEWAY ISOLATION                         │
-│      Real gateway app, mocked backend services              │
+┌────────────────────────────────────────────────────────────┐
+│                    END-TO-END TESTS                        │
+│        Evaluation pipeline with real services (DONE)        │
+├────────────────────────────────────────────────────────────┤
+│                   GATEWAY ISOLATION                        │
+│      Real gateway app, mocked backend services             │
 ├──────────────┬──────────────┬──────────────┬───────────────┤
-│  EMBEDDINGS  │    SEARCH    │  GEOMETRIC   │   (Gateway)   │
-│    (Real)    │    (Real)    │    (Real)    │   See above   │
-│  DINOv2 GPU  │  FAISS index │  ORB+RANSAC  │               │
+│  EMBEDDINGS  │    SEARCH    │  GEOMETRIC   │    STORAGE    │
+│    (Real)    │    (Real)    │    (Real)    │    (Real)     │
+│  DINOv2 GPU  │  FAISS index │  ORB+RANSAC  │ File blob I/O │
 └──────────────┴──────────────┴──────────────┴───────────────┘
 ```
 
@@ -64,9 +64,9 @@ The system uses a layered testing approach:
 
 | Level | Real Components | Mocked Components | What's Measured |
 |-------|-----------------|-------------------|-----------------|
-| **Service Isolation** | Service code, ML models, algorithms | Nothing | Raw processing performance |
+| **Service Isolation** | Service code, ML models, algorithms, storage I/O | Nothing | Raw processing performance |
 | **Gateway Isolation** | Gateway routing, orchestration | Backend services (respx) | Gateway overhead only |
-| **End-to-End** | All services via HTTP | Nothing | Full pipeline latency |
+| **End-to-End Evaluation** | All services via HTTP + evaluation dataset | Nothing | Pipeline accuracy and end-to-end timing |
 
 ---
 
@@ -225,6 +225,35 @@ Reports include:
 
 ---
 
+### Storage Service
+
+**Location:** `services/storage/tests/performance/`
+
+**What's Real:**
+- File-backed blob store implementation
+- PUT/GET/DELETE object handlers
+- Temporary storage directory (isolated per test run)
+
+**What's Mocked:** Nothing
+
+**Test Scenarios:**
+
+| Test Class | What's Varied | Values | Purpose |
+|------------|---------------|--------|---------|
+| `TestObjectSizeLatency` | Object payload size | 10KB to 5MB | Measure I/O and serialization cost |
+| `TestThroughput` | Method + request pattern | PUT/GET sequential + concurrent | Measure storage request capacity |
+
+**Key Insights:**
+- Storage tests run against real file I/O, not in-memory mocks
+- Object size materially affects PUT/GET latency
+- Concurrent throughput highlights disk and filesystem contention
+
+**Expected Performance:**
+- PUT/GET/DELETE latency scales with payload size
+- Throughput depends on storage medium and concurrency
+
+---
+
 ### Gateway Service
 
 **Location:** `services/gateway/tests/performance/`
@@ -265,11 +294,11 @@ All mocked responses return instantly (~1ms simulated processing).
 
 ## End-to-End Testing
 
-### Current Status: NOT IMPLEMENTED
+### Current Status: Implemented (via evaluation pipeline)
 
-The system currently lacks end-to-end performance tests that exercise the full pipeline with real services.
+End-to-end coverage is provided through `tools/evaluate.py` and `tools/run_evaluation.py`, which execute the real system through the gateway using the evaluation dataset.
 
-### What End-to-End Tests Would Measure
+### What End-to-End Evaluation Measures
 
 ```
 User Request
@@ -278,17 +307,20 @@ User Request
 ┌─────────┐     ┌────────────┐     ┌────────┐     ┌───────────┐
 │ Gateway │────▶│ Embeddings │────▶│ Search │────▶│ Geometric │
 └─────────┘     └────────────┘     └────────┘     └───────────┘
-    │                                                   │
-    ▼                                                   │
-  Response ◀────────────────────────────────────────────┘
+    │                                                ▲
+    │                                                │
+    │                                          ┌─────────┐
+    │                                          │ Storage │
+    │                                          └─────────┘
+    ▼
+  Response
 ```
 
-**Metrics to capture:**
-- Full pipeline latency (user-perceived)
-- Per-service breakdown within pipeline
-- Network overhead between services
-- Concurrent user capacity
-- System behavior under load
+**Metrics captured today:**
+- End-to-end latency statistics (`mean`, `median`, `p95`, `p99`, `min`, `max`)
+- Pipeline stage timings from gateway response (`embedding_ms`, `search_ms`, `geometric_ms`, `total_ms`)
+- Accuracy/ranking quality (Precision/Recall/F1, MRR, Hit@K, NDCG@K)
+- Comparison between embedding-only and geometric-verification modes
 
 ### Why It Matters
 
@@ -322,17 +354,18 @@ uv run pytest tests/performance/test_performance.py::TestDimensionLatency -v -s
 
 ```bash
 # From project root
-just test-performance-all  # If defined in justfile
+just test-perf-all
+cd services/storage && just test-performance
 ```
 
-### With Docker (Future E2E)
+### End-to-End Evaluation (Implemented)
 
 ```bash
-# Start all services
-just docker-up
+# Local services
+just evaluate
 
-# Run E2E tests (when implemented)
-# TODO: Define E2E test runner
+# Docker services
+just docker-evaluate
 ```
 
 ---

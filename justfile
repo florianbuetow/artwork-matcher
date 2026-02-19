@@ -9,20 +9,26 @@ help:
     @echo ""
     @printf "\033[0;34m=== Artwork Matcher ===\033[0m\n"
     @echo ""
-    @printf "\033[1;33mLocal Development\033[0m\n"
+    @printf "\033[1;33mSetup\033[0m\n"
+    @printf "  \033[0;37mjust check            \033[0;34m Check if all required tools are installed\033[0m\n"
     @printf "  \033[0;37mjust init-all         \033[0;34m Initialize all service environments\033[0m\n"
+    @printf "  \033[0;37mjust destroy-all      \033[0;34m Destroy all virtual environments\033[0m\n"
+    @echo ""
+    @printf "\033[1;33mLocal Development\033[0m\n"
     @printf "  \033[0;37mjust start-all        \033[0;34m Start all services in background\033[0m\n"
     @printf "  \033[0;37mjust start-embeddings \033[0;34m Start embeddings service locally\033[0m\n"
     @printf "  \033[0;37mjust start-search     \033[0;34m Start search service locally\033[0m\n"
     @printf "  \033[0;37mjust start-geometric  \033[0;34m Start geometric service locally\033[0m\n"
+    @printf "  \033[0;37mjust start-storage    \033[0;34m Start storage service locally\033[0m\n"
     @printf "  \033[0;37mjust start-gateway    \033[0;34m Start gateway service locally\033[0m\n"
     @printf "  \033[0;37mjust stop-all         \033[0;34m Stop all locally running services\033[0m\n"
     @printf "  \033[0;37mjust stop-embeddings  \033[0;34m Stop embeddings service\033[0m\n"
     @printf "  \033[0;37mjust stop-search      \033[0;34m Stop search service\033[0m\n"
     @printf "  \033[0;37mjust stop-geometric   \033[0;34m Stop geometric service\033[0m\n"
+    @printf "  \033[0;37mjust stop-storage     \033[0;34m Stop storage service\033[0m\n"
     @printf "  \033[0;37mjust stop-gateway     \033[0;34m Stop gateway service\033[0m\n"
     @printf "  \033[0;37mjust status           \033[0;34m Check health status of all services\033[0m\n"
-    @printf "  \033[0;37mjust destroy-all      \033[0;34m Destroy all virtual environments\033[0m\n"
+    @printf "  \033[0;37mjust demo             \033[0;34m Open gateway web UI in browser\033[0m\n"
     @echo ""
     @printf "\033[1;33mDocker\033[0m\n"
     @printf "  \033[0;37mjust docker-up        \033[0;34m Start all services\033[0m\n"
@@ -38,9 +44,14 @@ help:
     @printf "  \033[0;37mjust delete-index     \033[0;34m Delete the FAISS index\033[0m\n"
     @echo ""
     @printf "\033[1;33mEvaluation\033[0m\n"
-    @printf "  \033[0;37mjust build-eval-index \033[0;34m Build FAISS index from object images\033[0m\n"
-    @printf "  \033[0;37mjust evaluate         \033[0;34m Full E2E evaluation pipeline (local)\033[0m\n"
-    @printf "  \033[0;37mjust docker-evaluate  \033[0;34m Full E2E evaluation pipeline (Docker)\033[0m\n"
+    @printf "  \033[0;37mjust build-eval-index       \033[0;34m Build FAISS index from object images\033[0m\n"
+    @printf "  \033[0;37mjust evaluate               \033[0;34m Full E2E evaluation pipeline (local)\033[0m\n"
+    @printf "  \033[0;37mjust docker-evaluate        \033[0;34m Full E2E evaluation pipeline (Docker)\033[0m\n"
+    @printf "  \033[0;37mjust test-perf-all          \033[0;34m Run performance tests for all services\033[0m\n"
+    @printf "  \033[0;37mjust test-perf-embeddings   \033[0;34m Run performance tests for embeddings\033[0m\n"
+    @printf "  \033[0;37mjust test-perf-search       \033[0;34m Run performance tests for search\033[0m\n"
+    @printf "  \033[0;37mjust test-perf-geometric    \033[0;34m Run performance tests for geometric\033[0m\n"
+    @printf "  \033[0;37mjust test-perf-gateway      \033[0;34m Run performance tests for gateway\033[0m\n"
     @echo ""
     @printf "\033[1;33mCI & Code Quality\033[0m\n"
     @printf "  \033[0;37mjust test-all         \033[0;34m Run tests for all services\033[0m\n"
@@ -52,7 +63,61 @@ help:
     @printf "  \033[0;37mjust format-all       \033[0;34m Auto-format all services\033[0m\n"
     @echo ""
 
+# --- Setup ---
+
+# Check if all required tools are installed
+check:
+    #!/usr/bin/env bash
+    printf "\n"
+    printf "\033[0;34m=== Checking Required Tools ===\033[0m\n"
+    printf "\n"
+    missing=0
+
+    check_tool() {
+        local name=$1
+        local cmd=$2
+        local version_flag=${3:---version}
+        if command -v "$cmd" >/dev/null 2>&1; then
+            version=$("$cmd" $version_flag 2>&1 | head -1)
+            printf "\033[0;32m✓ %s\033[0m - %s\n" "$name" "$version"
+        else
+            printf "\033[0;31m✗ %s\033[0m - not found\n" "$name"
+            missing=$((missing + 1))
+        fi
+    }
+
+    check_tool "uv"     uv     "--version"
+    check_tool "python"  python3 "--version"
+    check_tool "docker"  docker  "--version"
+    check_tool "curl"    curl    "--version"
+    check_tool "jq"      jq      "--version"
+    check_tool "lsof"    lsof    "-v"
+
+    printf "\n"
+    if [ "$missing" -gt 0 ]; then
+        printf "\033[0;31m✗ %d tool(s) missing\033[0m\n" "$missing"
+        exit 1
+    else
+        printf "\033[0;32m✓ All required tools are installed\033[0m\n"
+    fi
+    printf "\n"
+
 # --- Local Development ---
+
+# Open gateway web UI in browser
+demo:
+    #!/usr/bin/env bash
+    url="http://localhost:8000"
+    if ! curl -s --connect-timeout 2 "${url}/health?check_backends=false" >/dev/null 2>&1; then
+        printf "\033[0;31m✗ Gateway is not running on port 8000\033[0m\n"
+        exit 1
+    fi
+    case "$(uname -s)" in
+        Darwin)  open "$url" ;;
+        Linux)   xdg-open "$url" ;;
+        MINGW*|MSYS*|CYGWIN*) cmd.exe /c start "$url" ;;
+        *)       echo "Unsupported platform: $(uname -s)" && exit 1 ;;
+    esac
 
 # Initialize all service environments
 init-all:
@@ -61,6 +126,7 @@ init-all:
     cd services/embeddings && just init
     cd services/search && just init
     cd services/geometric && just init
+    cd services/storage && just init
     cd services/gateway && just init
     cd tools && just init
     @printf "\033[0;32m✓ All services initialized\033[0m\n"
@@ -84,6 +150,12 @@ start-geometric:
     cd services/geometric && just run
     @echo ""
 
+# Start storage service locally
+start-storage:
+    @echo ""
+    cd services/storage && just run
+    @echo ""
+
 # Start gateway service locally
 start-gateway:
     @echo ""
@@ -100,6 +172,7 @@ start-all:
     cd services/embeddings && uv run uvicorn embeddings_service.app:create_app --factory --host 0.0.0.0 --port 8001 &
     cd services/search && uv run uvicorn search_service.app:create_app --factory --host 0.0.0.0 --port 8002 &
     cd services/geometric && uv run uvicorn geometric_service.app:create_app --factory --host 0.0.0.0 --port 8003 &
+    cd services/storage && uv run uvicorn storage_service.app:create_app --factory --host 0.0.0.0 --port 8004 &
     cd services/gateway && uv run uvicorn gateway.app:create_app --factory --host 0.0.0.0 --port 8000 &
 
     printf "Services starting in background...\n"
@@ -124,6 +197,12 @@ stop-geometric:
     cd services/geometric && just kill
     @echo ""
 
+# Stop storage service
+stop-storage:
+    @echo ""
+    cd services/storage && just kill
+    @echo ""
+
 # Stop gateway service
 stop-gateway:
     @echo ""
@@ -137,6 +216,7 @@ stop-all:
     cd services/embeddings && just kill
     cd services/search && just kill
     cd services/geometric && just kill
+    cd services/storage && just kill
     cd services/gateway && just kill
     @printf "\033[0;32m✓ All services stopped\033[0m\n"
     @echo ""
@@ -151,10 +231,11 @@ status:
     check_service() {
         local name=$1
         local port=$2
+        local query_params=${3:-}
         local health_response
         local info_response
 
-        if health_response=$(curl -s --connect-timeout 2 "http://localhost:${port}/health" 2>/dev/null); then
+        if health_response=$(curl -s --connect-timeout 2 "http://localhost:${port}/health${query_params}" 2>/dev/null); then
             status=$(echo "$health_response" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
             uptime=$(echo "$health_response" | grep -o '"uptime":"[^"]*"' | cut -d'"' -f4)
             if [ "$status" = "healthy" ]; then
@@ -177,10 +258,11 @@ status:
         fi
     }
 
-    check_service "Gateway" 8000
+    check_service "Gateway" 8000 "?check_backends=false"
     check_service "Embeddings" 8001
     check_service "Search" 8002
     check_service "Geometric" 8003
+    check_service "Storage" 8004
 
     printf "\n"
 
@@ -191,6 +273,7 @@ destroy-all:
     cd services/embeddings && just destroy
     cd services/search && just destroy
     cd services/geometric && just destroy
+    cd services/storage && just destroy
     cd services/gateway && just destroy
     cd tools && just destroy
     @printf "\033[0;32m✓ All virtual environments removed\033[0m\n"
@@ -258,7 +341,7 @@ build-index:
     @echo ""
     @printf "\033[0;33mThis will replace the existing FAISS index with downloaded images.\033[0m\n"
     @printf "Continue? [y/N] " && read ans && [ "$ans" = "y" ] || (printf "\033[0;31mAborted.\033[0m\n" && exit 1)
-    cd tools && uv run python build_index.py --objects ../data/downloads/images --embeddings-url http://localhost:8001 --search-url http://localhost:8002 --force
+    cd tools && uv run python build_index.py --objects ../data/downloads/images --embeddings-url http://localhost:8001 --search-url http://localhost:8002 --storage-url http://localhost:8004 --force
     @echo ""
 
 # Delete the FAISS index
@@ -285,11 +368,11 @@ build-eval-index:
     @echo ""
     @printf "\033[0;33mThis will replace the existing FAISS index with evaluation data.\033[0m\n"
     @printf "Continue? [y/N] " && read ans && [ "$ans" = "y" ] || (printf "\033[0;31mAborted.\033[0m\n" && exit 1)
-    cd tools && uv run python build_index.py --objects ../data/evaluation/objects --embeddings-url http://localhost:8001 --search-url http://localhost:8002 --force
+    cd tools && uv run python build_index.py --objects ../data/evaluation/objects --embeddings-url http://localhost:8001 --search-url http://localhost:8002 --storage-url http://localhost:8004 --force
     @echo ""
 
-# Full E2E evaluation pipeline (local: builds index, evaluates)
-evaluate: build-eval-index
+# Full E2E evaluation pipeline (local: deletes index, rebuilds, evaluates)
+evaluate: delete-index build-eval-index
     @echo ""
     cd tools && uv run python evaluate.py --testdata ../data/evaluation --output ../reports/evaluation --gateway-url http://localhost:8000 --k 10 --threshold 0.0
     @echo ""
@@ -298,6 +381,43 @@ evaluate: build-eval-index
 docker-evaluate:
     @echo ""
     cd tools && uv run python run_evaluation.py --testdata ../data/evaluation --output ../reports/evaluation --gateway-url http://localhost:8000 --embeddings-url http://localhost:8001 --search-url http://localhost:8002 --geometric-url http://localhost:8003 --k 10 --threshold 0.0
+    @echo ""
+
+# --- Performance ---
+
+# Run performance tests for all services
+test-perf-all:
+    @echo ""
+    @printf "\033[0;34m=== Running All Performance Tests ===\033[0m\n"
+    cd services/embeddings && just test-performance
+    cd services/search && just test-performance
+    cd services/geometric && just test-performance
+    cd services/gateway && just test-performance
+    @printf "\033[0;32m✓ All performance tests passed\033[0m\n"
+    @echo ""
+
+# Run performance tests for embeddings service
+test-perf-embeddings:
+    @echo ""
+    cd services/embeddings && just test-performance
+    @echo ""
+
+# Run performance tests for search service
+test-perf-search:
+    @echo ""
+    cd services/search && just test-performance
+    @echo ""
+
+# Run performance tests for geometric service
+test-perf-geometric:
+    @echo ""
+    cd services/geometric && just test-performance
+    @echo ""
+
+# Run performance tests for gateway service
+test-perf-gateway:
+    @echo ""
+    cd services/gateway && just test-performance
     @echo ""
 
 # --- CI & Code Quality ---
@@ -309,6 +429,7 @@ test-all:
     cd services/embeddings && just test
     cd services/search && just test
     cd services/geometric && just test
+    cd services/storage && just test
     cd services/gateway && just test
     @printf "\033[0;32m✓ All tests passed\033[0m\n"
     @echo ""
@@ -347,6 +468,7 @@ ci-all:
     cd services/embeddings && just ci
     cd services/search && just ci
     cd services/geometric && just ci
+    cd services/storage && just ci
     cd services/gateway && just ci
     printf "\n"
     printf "\033[0;32m✓ All CI checks passed\033[0m\n"
@@ -368,6 +490,9 @@ ci-all-quiet:
     printf "Checking geometric...\n"
     cd services/geometric && just ci-quiet
 
+    printf "Checking storage...\n"
+    cd services/storage && just ci-quiet
+
     printf "Checking gateway...\n"
     cd services/gateway && just ci-quiet
 
@@ -381,5 +506,6 @@ format-all:
     cd services/embeddings && just code-format
     cd services/search && just code-format
     cd services/geometric && just code-format
+    cd services/storage && just code-format
     cd services/gateway && just code-format
     @echo ""

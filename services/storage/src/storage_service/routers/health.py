@@ -1,0 +1,58 @@
+"""
+Health check endpoint.
+
+Provides service health status for container orchestration.
+"""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+
+from fastapi import APIRouter
+
+from storage_service.core.exceptions import ServiceError
+from storage_service.core.state import get_app_state
+from storage_service.schemas import HealthResponse
+
+router = APIRouter()
+
+
+@router.get("/health", response_model=HealthResponse)
+async def health_check() -> HealthResponse:
+    """
+    Check service health.
+
+    Health semantics:
+    - healthy: service can process storage requests
+    """
+    state = get_app_state()
+    blob_store = state.blob_store
+    if blob_store is None:
+        raise ServiceError(
+            error="service_unavailable",
+            message="Blob store is not initialized",
+            status_code=503,
+            details={},
+        )
+
+    try:
+        blob_store.count()
+    except OSError as exc:
+        raise ServiceError(
+            error="storage_unavailable",
+            message="Storage backend is unavailable",
+            status_code=503,
+            details={
+                "exception_type": exc.__class__.__name__,
+                "reason": str(exc),
+            },
+        ) from exc
+
+    system_time = datetime.now(UTC).strftime("%Y-%m-%d %H:%M")
+
+    return HealthResponse(
+        status="healthy",
+        uptime_seconds=state.uptime_seconds,
+        uptime=state.uptime_formatted,
+        system_time=system_time,
+    )

@@ -50,6 +50,7 @@ class BackendStatus(BaseModel):
     embeddings: str
     search: str
     geometric: str
+    storage: str
 
 
 class HealthResponse(BaseModel):

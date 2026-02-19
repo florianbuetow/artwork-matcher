@@ -2,7 +2,9 @@
 
 ## System Overview
 
-The Artwork Matcher is a microservices-based system for identifying museum artworks from visitor photos. It uses a two-stage pipeline: fast embedding-based retrieval followed by geometric verification.
+The Artwork Matcher is a microservices-based system for identifying museum artworks from visitor
+photos. It uses embedding-based retrieval followed by optional geometric verification, with
+reference images served from the storage service.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
@@ -62,6 +64,7 @@ The Artwork Matcher is a microservices-based system for identifying museum artwo
 | **Embeddings** | 8001 | Image → vector | DINOv2, PyTorch |
 | **Search** | 8002 | Vector similarity search | FAISS |
 | **Geometric** | 8003 | Spatial verification | OpenCV, ORB, RANSAC |
+| **Storage** | 8004 | Binary object storage | Filesystem |
 
 ## Detailed API Specifications
 
@@ -72,6 +75,7 @@ The Artwork Matcher is a microservices-based system for identifying museum artwo
 | [Embeddings Service API](embeddings_service_api_spec.md) | DINOv2 embedding extraction |
 | [Search Service API](search_service_api_spec.md) | FAISS vector similarity search |
 | [Geometric Service API](geometric_service_api_spec.md) | ORB + RANSAC geometric verification |
+| [Storage Service API](storage_service_api_spec.md) | Binary object storage and retrieval |
 
 ---
 
@@ -118,6 +122,17 @@ The Artwork Matcher is a microservices-based system for identifying museum artwo
 | `POST` | `/match` | Compare two images |
 | `POST` | `/match/batch` | Compare query against multiple references |
 
+### Storage Service (Port 8004) — Internal
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| `GET` | `/health` | Health check |
+| `GET` | `/info` | Storage configuration and object count |
+| `PUT` | `/objects/{id}` | Store binary object |
+| `GET` | `/objects/{id}` | Retrieve binary object |
+| `DELETE` | `/objects/{id}` | Delete a single object |
+| `DELETE` | `/objects` | Delete all stored objects |
+
 ---
 
 ## Sequence Diagrams
@@ -127,9 +142,9 @@ The Artwork Matcher is a microservices-based system for identifying museum artwo
 This is the primary use case: a visitor takes a photo and wants to know what artwork it shows.
 
 ```
-┌────────┐     ┌─────────┐     ┌────────────┐     ┌────────┐     ┌───────────┐
-│ Client │     │ Gateway │     │ Embeddings │     │ Search │     │ Geometric │
-└───┬────┘     └────┬────┘     └─────┬──────┘     └───┬────┘     └─────┬─────┘
+┌────────┐     ┌─────────┐     ┌────────────┐     ┌────────┐     ┌───────────┐     ┌─────────┐
+│ Client │     │ Gateway │     │ Embeddings │     │ Search │     │ Geometric │     │ Storage │
+└───┬────┘     └────┬────┘     └─────┬──────┘     └───┬────┘     └─────┬─────┘     └────┬────┘
     │               │                │                │                │
     │ POST /identify│                │                │                │
     │ {image: b64}  │                │                │                │
@@ -376,10 +391,12 @@ Checking the health of the entire system.
     │               │────── GET /health (parallel) ───────────────────▶│
     │               │───────────────▶│                │                │
     │               │────────────────────────────────▶│                │
+    │               │────────────────────────────────────────────────────────────▶│
     │               │                │                │                │
     │               │◀───────────────│                │                │
     │               │◀────────────────────────────────│                │
     │               │◀─────────────────────────────────────────────────│
+    │               │◀────────────────────────────────────────────────────────────│
     │               │                │                │                │
     │               │ Aggregate      │                │                │
     │               │ results        │                │                │
@@ -392,6 +409,8 @@ Checking the health of the entire system.
     │   search:     │                │                │                │
     │    "healthy", │                │                │                │
     │   geometric:  │                │                │                │
+    │    "healthy", │                │                │                │
+    │   storage:    │                │                │                │
     │    "healthy"  │                │                │                │
     │  }}           │                │                │                │
     │◀──────────────│                │                │                │
@@ -710,9 +729,10 @@ curl -X POST http://localhost:8000/identify \
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `GATEWAY__BACKENDS__EMBEDDINGS__URL` | `http://localhost:8001` | Embeddings service URL |
-| `GATEWAY__BACKENDS__SEARCH__URL` | `http://localhost:8002` | Search service URL |
-| `GATEWAY__BACKENDS__GEOMETRIC__URL` | `http://localhost:8003` | Geometric service URL |
+| `GATEWAY__BACKENDS__EMBEDDINGS_URL` | `http://localhost:8001` | Embeddings service URL |
+| `GATEWAY__BACKENDS__SEARCH_URL` | `http://localhost:8002` | Search service URL |
+| `GATEWAY__BACKENDS__GEOMETRIC_URL` | `http://localhost:8003` | Geometric service URL |
+| `GATEWAY__BACKENDS__STORAGE_URL` | `http://localhost:8004` | Storage service URL |
 | `GATEWAY__PIPELINE__SEARCH_K` | `5` | Number of candidates |
 | `GATEWAY__PIPELINE__SIMILARITY_THRESHOLD` | `0.7` | Minimum similarity |
 | `GATEWAY__PIPELINE__GEOMETRIC_VERIFICATION` | `true` | Enable verification |
@@ -725,6 +745,7 @@ curl -X POST http://localhost:8000/identify \
 | Embeddings | 8001 | `EMBEDDINGS__SERVER__PORT` |
 | Search | 8002 | `SEARCH__SERVER__PORT` |
 | Geometric | 8003 | `GEOMETRIC__SERVER__PORT` |
+| Storage | 8004 | `STORAGE__SERVER__PORT` |
 
 ---
 
