@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from gateway.clients.embeddings import EmbeddingsClient
     from gateway.clients.geometric import GeometricClient
     from gateway.clients.search import SearchClient
+    from gateway.clients.storage import StorageClient
 
 
 @pytest.fixture
@@ -84,6 +85,27 @@ async def geometric_client(mock_httpx_client: AsyncMock) -> AsyncGenerator[Geome
         base_url="http://localhost:8003",
         timeout=30.0,
         service_name="geometric",
+        retry_max_attempts=3,
+        retry_initial_backoff_seconds=0.01,
+        retry_max_backoff_seconds=0.02,
+        retry_jitter_seconds=0.0,
+        circuit_breaker_failure_threshold=3,
+        circuit_breaker_recovery_timeout_seconds=60.0,
+    )
+    # Replace the internal httpx client with our mock
+    client.client = mock_httpx_client
+    yield client
+
+
+@pytest.fixture
+async def storage_client(mock_httpx_client: AsyncMock) -> AsyncGenerator[StorageClient, None]:
+    """Create a StorageClient with a mocked httpx client."""
+    from gateway.clients.storage import StorageClient  # noqa: PLC0415
+
+    client = StorageClient(
+        base_url="http://localhost:8004",
+        timeout=30.0,
+        service_name="storage",
         retry_max_attempts=3,
         retry_initial_backoff_seconds=0.01,
         retry_max_backoff_seconds=0.02,
